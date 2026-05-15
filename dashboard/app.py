@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 
 from dashboard.state import init_state
+from dashboard.layout import apply_theme
+from dashboard.components.filters import render_filters
 from dashboard.pages import overview, analytics, optimization, backtests, exposure, recommendations
 
 # ── Page config ──────────────────────────────────────────────────────────────
@@ -23,22 +25,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ───────────────────────────────────────────────────────────────
+# ── Theme & State ────────────────────────────────────────────────────────────
 
-st.markdown("""
-<style>
-    /* Dark finance theme overrides */
-    .stMetric label { font-size: 0.85rem !important; color: #888 !important; }
-    .stMetric [data-testid="stMetricValue"] { font-size: 1.4rem !important; }
-    div[data-testid="stSidebarContent"] { padding-top: 1rem; }
-    .block-container { padding-top: 1.5rem; }
-    h1, h2, h3 { letter-spacing: -0.02em; }
-    .stDivider { margin: 1rem 0 !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# ── State ────────────────────────────────────────────────────────────────────
-
+apply_theme()
 init_state()
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
@@ -65,24 +54,8 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Settings panel ───────────────────────────────────────────────────
-    with st.expander("⚙️ Settings", expanded=False):
-        st.session_state["max_weight"] = st.slider(
-            "Max asset weight", 0.10, 0.60, st.session_state["max_weight"],
-            step=0.05, format="%.0f%%",
-        )
-        st.session_state["rebalance_freq"] = st.selectbox(
-            "Rebalance frequency",
-            ["monthly", "quarterly"],
-            index=1 if st.session_state["rebalance_freq"] == "quarterly" else 0,
-        )
-        st.session_state["slippage_bps"] = st.slider(
-            "Slippage (bps)", 0, 50, st.session_state["slippage_bps"],
-        )
-        st.session_state["tilt_strength"] = st.slider(
-            "Signal tilt strength", 0.0, 0.50, st.session_state["tilt_strength"],
-            step=0.05,
-        )
+    # ── Research controls ────────────────────────────────────────────────
+    render_filters()
 
     st.divider()
     st.caption("Sprint 1→7 • POC v0.7")

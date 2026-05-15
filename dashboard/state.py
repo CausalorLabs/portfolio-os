@@ -16,9 +16,15 @@ def init_state() -> None:
         "country_cap_in": 0.60,
         "tilt_strength": 0.20,
         "rebalance_freq": "quarterly",
+        "turnover_threshold": 0.10,
+        # Risk settings
+        "vol_target": 0.20,
         # Backtest settings
         "backtest_capital": 1_000_000,
         "slippage_bps": 10,
+        "selected_benchmark": "SPY",
+        # Strategy selection
+        "selected_strategy": "hrp_optimized",
         # Date range (set from data)
         "date_range_start": None,
         "date_range_end": None,

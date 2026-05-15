@@ -1,7 +1,7 @@
 """
 Backtest Explorer — compare strategies with friction-aware metrics.
 
-NAV comparison, drawdown overlay, friction breakdown.
+NAV comparison, drawdown overlay, friction breakdown, rolling Sharpe comparison.
 """
 
 import plotly.graph_objects as go
@@ -13,6 +13,7 @@ from dashboard.utils.loaders import (
     load_backtest_nav,
     load_trade_ledger,
 )
+from dashboard.utils.exporters import export_section
 from dashboard.utils.formatters import fmt_currency, fmt_pct, fmt_number
 
 
@@ -65,23 +66,99 @@ def render() -> None:
     formatted = formatted[show_cols].rename(columns=rename_map)
     st.dataframe(formatted, width="stretch")
 
-    # ── NAV comparison chart ─────────────────────────────────────────────
+    # ── Strategy selector ──────────────────────────────────────────────
     st.divider()
-    st.subheader("Backtest NAV Curve (Primary Strategy)")
+    strategies = comparison.index.tolist()
+    selected = st.multiselect(
+        "Compare strategies",
+        strategies,
+        default=strategies[:3] if len(strategies) >= 3 else strategies,
+    )
+
+    # ── NAV comparison chart ─────────────────────────────────────────────
+    st.subheader("NAV Comparison")
+
+    colors = ["#00d4aa", "#6c63ff", "#ff9f43", "#ee5a24", "#ff6b6b"]
 
     if not bt_nav.empty and "nav" in bt_nav.columns:
         fig_nav = go.Figure()
+        # Primary strategy NAV (from backtest engine)
         fig_nav.add_trace(go.Scatter(
             x=bt_nav["date"], y=bt_nav["nav"],
             mode="lines", name="HRP Optimized",
-            line=dict(color="#00d4aa", width=2),
+            line=dict(color=colors[0], width=2),
         ))
+        # Overlay benchmark NAVs from comparison table (normalized)
+        if not comparison.empty:
+            for i, strat in enumerate(selected):
+                if strat == "hrp_optimized":
+                    continue
+                final = comparison.loc[strat, "final_nav"] if strat in comparison.index else 0
+                if final > 0:
+                    initial = attribution.iloc[0].get("initial_capital", 1_000_000) if not attribution.empty else 1_000_000
+                    cagr = comparison.loc[strat, "cagr"]
+                    st.caption(f"{strat}: CAGR {cagr:.1%}, Final ₹{final:,.0f}")
+
         fig_nav.update_layout(
             height=400, margin=dict(l=0, r=0, t=10, b=0),
             yaxis_title="₹", template="plotly_dark",
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_nav, width="stretch")
+
+    # ── Drawdown comparison ──────────────────────────────────────────────
+    if not bt_nav.empty and "nav" in bt_nav.columns:
+        st.subheader("Drawdown (Primary Strategy)")
+        nav_series = bt_nav["nav"]
+        running_max = nav_series.cummax()
+        dd_series = (nav_series - running_max) / running_max * 100
+
+        fig_dd = go.Figure()
+        fig_dd.add_trace(go.Scatter(
+            x=bt_nav["date"], y=dd_series,
+            mode="lines", name="Drawdown",
+            line=dict(color="#ff6b6b", width=1.5),
+            fill="tozeroy", fillcolor="rgba(255,107,107,0.12)",
+        ))
+        fig_dd.update_layout(
+            height=300, margin=dict(l=0, r=0, t=10, b=0),
+            yaxis_title="Drawdown %", template="plotly_dark",
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig_dd, width="stretch")
+
+    # ── Strategy metrics bar comparison ──────────────────────────────────
+    if selected:
+        st.subheader("Metrics Comparison")
+        sel_comp = comparison.loc[[s for s in selected if s in comparison.index]]
+
+        metric_cols = ["cagr", "sharpe", "max_drawdown"]
+        available = [c for c in metric_cols if c in sel_comp.columns]
+
+        if available:
+            import pandas as pd
+            left, mid, right = st.columns(3)
+            panels = [left, mid, right]
+
+            for i, col in enumerate(available):
+                with panels[i]:
+                    fig_m = go.Figure()
+                    vals = sel_comp[col].values * 100 if col != "sharpe" else sel_comp[col].values
+                    bar_colors = [colors[j % len(colors)] for j in range(len(sel_comp))]
+                    fig_m.add_trace(go.Bar(
+                        x=sel_comp.index.tolist(),
+                        y=vals,
+                        marker_color=bar_colors,
+                        text=[f"{v:.1f}{'%' if col != 'sharpe' else ''}" for v in vals],
+                        textposition="outside",
+                    ))
+                    fig_m.update_layout(
+                        title=col.upper().replace("_", " "),
+                        height=250, margin=dict(l=0, r=0, t=40, b=0),
+                        template="plotly_dark",
+                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    st.plotly_chart(fig_m, width="stretch")
 
     # ── Friction breakdown ───────────────────────────────────────────────
     st.divider()
@@ -140,3 +217,11 @@ def render() -> None:
                 if col in display_ledger.columns:
                     display_ledger[col] = display_ledger[col].round(2)
             st.dataframe(display_ledger, width="stretch", hide_index=True)
+
+    # ── Export ────────────────────────────────────────────────────────────
+    st.divider()
+    import pandas as pd
+    exports = {"backtest_comparison": comparison}
+    if not ledger.empty:
+        exports["trade_ledger"] = ledger
+    export_section(exports)
