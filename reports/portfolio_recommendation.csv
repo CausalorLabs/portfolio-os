@@ -1,0 +1,5 @@
+ticker,current_weight,target_weight,weight_change,action
+AAPL,0.3974,0.1234,-0.2739,SELL
+INFY.NS,0.0657,0.1983,0.1325,BUY
+RELIANCE.NS,0.0375,0.3355,0.298,BUY
+SPY,0.4994,0.3428,-0.1566,SELL

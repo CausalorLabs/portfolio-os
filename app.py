@@ -1,10 +1,11 @@
 """
-Portfolio OS — Sprint 1 → 4 entry point.
+Portfolio OS — Sprint 1 → 5 entry point.
 
 Sprint 1: Downloads market data, validates, persists to parquet.
 Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
 Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
 Sprint 4: Feature engineering, signal generation, feature store.
+Sprint 5: Portfolio optimization, HRP, constraints, allocation engine.
 """
 
 from pathlib import Path
@@ -37,6 +38,22 @@ from reports.report_generator import (
 from features.feature_store import build_feature_store, save_feature_store
 from features.validators import validate_features, check_lookahead_bias
 from features.signal_ranker import calculate_composite_score
+
+from optimization.baselines import (
+    equal_weight_portfolio,
+    inverse_volatility_portfolio,
+    risk_parity_portfolio,
+)
+from optimization.covariance import (
+    calculate_covariance_matrix,
+    calculate_shrinkage_covariance,
+)
+from optimization.hrp import allocate_hrp_weights
+from optimization.constraints import apply_weight_caps, apply_country_constraints
+from optimization.allocator import build_signal_tilted_portfolio
+from optimization.turnover import calculate_turnover, calculate_weight_drift
+from optimization.rebalance import should_rebalance, calculate_rebalance_trades
+from optimization.reporting import generate_allocation_report
 
 
 ASSET_MASTER = Path("configs/asset_master.csv")
@@ -334,11 +351,163 @@ def _print_sprint4_summary(store: pd.DataFrame, scores: pd.DataFrame) -> None:
     logger.info(f"  Store size:         {size_mb:.2f} MB")
 
 
+# ── Sprint 5 ─────────────────────────────────────────────────────────────────
+
+
+def _build_wide_returns(inr_prices: pd.DataFrame) -> pd.DataFrame:
+    """Pivot inr_prices to wide-format daily returns (columns = tickers)."""
+    # Exclude FX ticker
+    prices = inr_prices[~inr_prices["ticker"].str.contains("=X")].copy()
+    wide = prices.pivot_table(
+        index="date", columns="ticker", values="inr_price", aggfunc="first"
+    )
+    wide = wide.sort_index().ffill().dropna()
+    returns = wide.pct_change().dropna()
+    return returns
+
+
+def run_sprint5(
+    inr_prices: pd.DataFrame,
+    nav: pd.DataFrame,
+    contributions: pd.DataFrame,
+    master: pd.DataFrame,
+) -> None:
+    """Execute Sprint 5: Portfolio Optimization Engine."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 5 — PORTFOLIO OPTIMIZATION ENGINE")
+    logger.info("=" * 60)
+
+    # Prepare wide-format returns
+    returns = _build_wide_returns(inr_prices)
+    tickers = list(returns.columns)
+    logger.info(f"\n  Return matrix: {returns.shape[0]} days × {len(tickers)} assets")
+    logger.info(f"  Assets: {', '.join(tickers)}")
+
+    # ── Step 1: Baseline strategies ──────────────────────────────────────
+    logger.info("\n▸ Step 1 — Baseline Strategies")
+    ew = equal_weight_portfolio(tickers)
+    iv = inverse_volatility_portfolio(returns, tickers)
+    rp = risk_parity_portfolio(returns, tickers)
+
+    # ── Step 2: Covariance estimation ────────────────────────────────────
+    logger.info("\n▸ Step 2 — Covariance Estimation")
+    cov_sample = calculate_covariance_matrix(returns, window=120)
+    cov_shrink = calculate_shrinkage_covariance(returns, window=120)
+
+    # ── Step 3: HRP allocation ───────────────────────────────────────────
+    logger.info("\n▸ Step 3 — HRP Allocation")
+    hrp = allocate_hrp_weights(returns, cov=cov_shrink)
+
+    # ── Step 4: Constraints ──────────────────────────────────────────────
+    logger.info("\n▸ Step 4 — Constraint Engine")
+    hrp_constrained = apply_weight_caps(
+        hrp, max_weight=0.40, min_weight=0.05, cash_reserve=0.0
+    )
+    hrp_constrained = apply_country_constraints(
+        hrp_constrained, master, country_caps={"US": 0.60, "IN": 0.60}
+    )
+
+    # ── Step 5: Signal-tilted allocation ─────────────────────────────────
+    logger.info("\n▸ Step 5 — Signal-Tilted Allocation")
+    scores_path = PROCESSED_DIR / "signal_scores.parquet"
+    if scores_path.exists():
+        signal_scores = pd.read_parquet(scores_path)
+        tilted = build_signal_tilted_portfolio(
+            hrp_constrained, signal_scores, tilt_strength=0.20
+        )
+    else:
+        logger.warning("No signal scores found — using constrained HRP as final")
+        tilted = hrp_constrained.copy()
+        tilted["strategy"] = "hrp_constrained"
+
+    # ── Step 6: Turnover analysis ────────────────────────────────────────
+    logger.info("\n▸ Step 6 — Turnover Analysis")
+    # Current weights from latest contributions
+    latest_date = contributions["date"].max()
+    latest_contrib = contributions[contributions["date"] == latest_date][
+        ["ticker", "contribution_pct"]
+    ].copy()
+    latest_contrib = latest_contrib.rename(
+        columns={"contribution_pct": "current_weight"}
+    )
+    latest_contrib["current_weight"] = latest_contrib["current_weight"] / 100.0
+
+    turnover_df = calculate_turnover(latest_contrib, tilted)
+
+    # Weight drift simulation
+    drift = calculate_weight_drift(tilted, returns, n_days=60)
+
+    # ── Step 7: Rebalance decision ───────────────────────────────────────
+    logger.info("\n▸ Step 7 — Rebalance Decision")
+    rebalance = should_rebalance(
+        latest_contrib, tilted, drift_threshold=0.05, method="threshold"
+    )
+
+    portfolio_value = nav.iloc[-1]["portfolio_nav"]
+    if rebalance["should_rebalance"]:
+        trades = calculate_rebalance_trades(
+            latest_contrib, tilted, portfolio_value
+        )
+        _save(trades, "rebalance_trades.parquet")
+
+    # ── Step 8: Reporting ────────────────────────────────────────────────
+    logger.info("\n▸ Step 8 — Allocation Reporting")
+    strategies = {
+        "equal_weight": ew,
+        "inverse_vol": iv,
+        "risk_parity": rp,
+        "hrp": hrp,
+        "signal_tilted": tilted,
+    }
+    comparison = generate_allocation_report(
+        strategies, tilted, turnover_df, rebalance
+    )
+
+    # Save final weights
+    _save(tilted, "target_weights.parquet")
+
+    _print_sprint5_summary(strategies, tilted, turnover_df, rebalance)
+
+
+def _print_sprint5_summary(
+    strategies: dict,
+    final: pd.DataFrame,
+    turnover_df: pd.DataFrame,
+    rebalance: dict,
+) -> None:
+    """Final Sprint 5 summary."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 5 — SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"  Strategies compared: {len(strategies)}")
+    logger.info(f"  Final strategy:      {final['strategy'].iloc[0]}")
+    logger.info(f"  Weights sum:         {final['target_weight'].sum():.4f}")
+    if "total_turnover" in turnover_df.attrs:
+        logger.info(f"  Turnover (1-way):    {turnover_df.attrs['total_turnover']:.2%}")
+    status = "YES" if rebalance["should_rebalance"] else "NO"
+    logger.info(f"  Rebalance needed:    {status} — {rebalance['reason']}")
+
+    logger.info("\n  Target Portfolio:")
+    for _, row in final.sort_values("target_weight", ascending=False).iterrows():
+        logger.info(f"    {row['ticker']:15s}  {row['target_weight']:.2%}")
+
+    outputs = [
+        "data/processed/target_weights.parquet",
+        "reports/strategy_comparison.csv",
+        "reports/portfolio_recommendation.csv",
+    ]
+    logger.info(f"\n  Outputs: {len(outputs)} files")
+    for o in outputs:
+        logger.info(f"    {o}")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 4)")
+    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 5)")
     logger.info("-" * 50)
 
     master = load_asset_master()
@@ -356,6 +525,9 @@ def main() -> None:
 
     # Sprint 4: Feature engineering & signal layer
     run_sprint4(inr_prices)
+
+    # Sprint 5: Portfolio optimization engine
+    run_sprint5(inr_prices, nav, contributions, master)
 
     logger.info("\n✓ Pipeline complete.")
 
