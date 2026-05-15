@@ -1,0 +1,17 @@
+pandas
+numpy
+polars
+yfinance
+mftool
+duckdb
+pyarrow
+vectorbt
+PyPortfolioOpt
+plotly
+streamlit
+scikit-learn
+scipy
+statsmodels
+loguru
+tqdm
+python-dotenv

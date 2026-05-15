@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/raw/*
+data/processed/*
+data/cache/*
+data/exports/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/cache/.gitkeep
+!data/exports/.gitkeep
+.DS_Store
+*.egg-info/
+dist/
+build/
+.ipynb_checkpoints/

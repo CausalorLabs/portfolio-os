@@ -1,0 +1,6 @@
+ticker,asset_name,asset_type,country,currency,exchange
+AAPL,Apple Inc,equity,US,USD,NASDAQ
+SPY,SPDR S&P 500 ETF Trust,etf,US,USD,NYSE
+RELIANCE.NS,Reliance Industries,equity,IN,INR,NSE
+INFY.NS,Infosys Ltd,equity,IN,INR,NSE
+USDINR=X,USD/INR FX Rate,fx,GLOBAL,INR,FX
