@@ -35,18 +35,22 @@ def calculate_portfolio_nav(
         logger.warning("No price data found for any held ticker")
         return pd.DataFrame(columns=["date", "portfolio_nav", "daily_return"])
 
-    # Per-asset daily value
-    held["position_value"] = held["ticker"].map(qty_map) * held["inr_price"]
+    # Pivot to wide format and forward-fill so that each day has a price for
+    # every asset (avoids NAV jumps when only some markets are open).
+    wide = held.pivot_table(index="date", columns="ticker", values="inr_price", aggfunc="first")
+    wide = wide.sort_index().ffill()
 
-    # Aggregate to daily portfolio NAV
-    nav = (
-        held.groupby("date")["position_value"]
-        .sum()
-        .reset_index()
-        .rename(columns={"position_value": "portfolio_nav"})
-        .sort_values("date")
-        .reset_index(drop=True)
-    )
+    # Only keep dates where ALL assets have a price (after the first full date)
+    wide = wide.dropna()
+
+    # Compute position values
+    for ticker in wide.columns:
+        wide[ticker] = wide[ticker] * qty_map[ticker]
+
+    nav = pd.DataFrame({
+        "date": wide.index,
+        "portfolio_nav": wide.sum(axis=1).values,
+    }).reset_index(drop=True)
 
     nav["daily_return"] = nav["portfolio_nav"].pct_change()
 

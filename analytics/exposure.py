@@ -1,7 +1,9 @@
 """
-Exposure analytics — country, currency, and asset-class exposure tracking.
+Exposure analytics — country, currency, asset-class exposure tracking
+and portfolio concentration metrics.
 """
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -114,3 +116,49 @@ def latest_exposure_snapshot(
         logger.info(f"    {row['asset_type']:10s} {row['exposure_pct']:6.2f}%")
 
     return {"country": country, "currency": currency, "asset_class": asset_class}
+
+
+# ── Concentration metrics ────────────────────────────────────────────────────
+
+
+def calculate_concentration_metrics(contributions: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute daily concentration metrics from asset contribution weights.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: date, herfindahl_index, top1_pct, top3_pct,
+                 effective_n (effective number of assets)
+    """
+    results = []
+
+    for date, group in contributions.groupby("date"):
+        weights = group["contribution_pct"].values / 100.0  # fractions
+
+        hhi = float(np.sum(weights ** 2))
+        effective_n = 1.0 / hhi if hhi > 0 else 0.0
+
+        sorted_w = np.sort(weights)[::-1]
+        top1 = float(sorted_w[0]) * 100 if len(sorted_w) >= 1 else 0.0
+        top3 = float(sorted_w[:3].sum()) * 100 if len(sorted_w) >= 1 else 0.0
+
+        results.append({
+            "date": date,
+            "herfindahl_index": hhi,
+            "top1_pct": top1,
+            "top3_pct": top3,
+            "effective_n": effective_n,
+        })
+
+    df = pd.DataFrame(results)
+
+    if not df.empty:
+        latest = df.iloc[-1]
+        logger.info("Concentration metrics (latest):")
+        logger.info(f"  Herfindahl Index  {latest['herfindahl_index']:.4f}")
+        logger.info(f"  Top 1 asset       {latest['top1_pct']:.2f}%")
+        logger.info(f"  Top 3 assets      {latest['top3_pct']:.2f}%")
+        logger.info(f"  Effective N       {latest['effective_n']:.2f}")
+
+    return df

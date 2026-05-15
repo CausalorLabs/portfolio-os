@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset='utf-8'>
+<title>Portfolio Analytics Report</title>
+<style>
+body { font-family: -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #333; }
+h1 { color: #1a237e; }
+h2 { color: #283593; margin-top: 2em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: right; }
+th { background: #e8eaf6; text-align: left; }
+tr:nth-child(even) { background: #f5f5f5; }
+.positive { color: #2e7d32; } .negative { color: #c62828; }
+</style>
+</head><body>
+<h1>Portfolio Analytics Report</h1>
+<h2>Core Risk Metrics</h2>
+<table><tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Cagr</td><td class='positive'>+25.55%</td></tr>
+<tr><td>Annualized Return</td><td class='positive'>+27.52%</td></tr>
+<tr><td>Annualized Volatility</td><td class='positive'>+20.96%</td></tr>
+<tr><td>Sharpe Ratio</td><td class='positive'>1.074</td></tr>
+<tr><td>Sortino Ratio</td><td class='positive'>1.358</td></tr>
+<tr><td>Max Drawdown</td><td class='negative'>-30.00%</td></tr>
+<tr><td>Calmar Ratio</td><td class='positive'>0.852</td></tr>
+<tr><td>Skewness</td><td class='negative'>-0.125</td></tr>
+<tr><td>Kurtosis</td><td class='positive'>14.357</td></tr>
+</table>
+<h2>Benchmark Comparison</h2>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>metric</th>
+      <th>Portfolio</th>
+      <th>SPY</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CAGR</td>
+      <td>0.2555</td>
+      <td>0.2165</td>
+    </tr>
+    <tr>
+      <td>Ann. Volatility</td>
+      <td>0.2126</td>
+      <td>0.2096</td>
+    </tr>
+    <tr>
+      <td>Sharpe Ratio</td>
+      <td>1.1047</td>
+      <td>0.9263</td>
+    </tr>
+    <tr>
+      <td>Sortino Ratio</td>
+      <td>1.4102</td>
+      <td>1.1602</td>
+    </tr>
+    <tr>
+      <td>Max Drawdown</td>
+      <td>-0.3000</td>
+      <td>-0.2997</td>
+    </tr>
+    <tr>
+      <td>Correlation</td>
+      <td>0.9387</td>
+      <td>0.9387</td>
+    </tr>
+    <tr>
+      <td>Tracking Error</td>
+      <td>0.0740</td>
+      <td>0.0740</td>
+    </tr>
+    <tr>
+      <td>Information Ratio</td>
+      <td>0.4358</td>
+      <td>0.4358</td>
+    </tr>
+  </tbody>
+</table>
+<h2>Top Drawdown Periods</h2>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>start_date</th>
+      <th>trough_date</th>
+      <th>end_date</th>
+      <th>depth</th>
+      <th>days_to_trough</th>
+      <th>days_to_recovery</th>
+      <th>total_days</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2020-02-20</td>
+      <td>2020-03-23</td>
+      <td>2020-06-05</td>
+      <td>-30.00%</td>
+      <td>32</td>
+      <td>74.0</td>
+      <td>106.0</td>
+    </tr>
+    <tr>
+      <td>2024-12-27</td>
+      <td>2025-04-08</td>
+      <td>2025-08-13</td>
+      <td>-23.52%</td>
+      <td>102</td>
+      <td>127.0</td>
+      <td>229.0</td>
+    </tr>
+    <tr>
+      <td>2021-12-28</td>
+      <td>2022-06-16</td>
+      <td>2023-06-01</td>
+      <td>-21.30%</td>
+      <td>170</td>
+      <td>350.0</td>
+      <td>520.0</td>
+    </tr>
+    <tr>
+      <td>2020-09-02</td>
+      <td>2020-09-23</td>
+      <td>2020-11-16</td>
+      <td>-10.50%</td>
+      <td>21</td>
+      <td>54.0</td>
+      <td>75.0</td>
+    </tr>
+    <tr>
+      <td>2023-07-20</td>
+      <td>2023-10-26</td>
+      <td>2023-11-20</td>
+      <td>-10.24%</td>
+      <td>98</td>
+      <td>25.0</td>
+      <td>123.0</td>
+    </tr>
+    <tr>
+      <td>2024-07-17</td>
+      <td>2024-08-05</td>
+      <td>2024-08-30</td>
+      <td>-8.40%</td>
+      <td>19</td>
+      <td>25.0</td>
+      <td>44.0</td>
+    </tr>
+    <tr>
+      <td>2019-04-29</td>
+      <td>2019-06-03</td>
+      <td>2019-07-15</td>
+      <td>-7.97%</td>
+      <td>35</td>
+      <td>42.0</td>
+      <td>77.0</td>
+    </tr>
+    <tr>
+      <td>2021-01-26</td>
+      <td>2021-02-25</td>
+      <td>2021-04-07</td>
+      <td>-6.42%</td>
+      <td>30</td>
+      <td>41.0</td>
+      <td>71.0</td>
+    </tr>
+    <tr>
+      <td>2021-04-22</td>
+      <td>2021-05-12</td>
+      <td>2021-06-17</td>
+      <td>-6.39%</td>
+      <td>20</td>
+      <td>36.0</td>
+      <td>56.0</td>
+    </tr>
+    <tr>
+      <td>2024-02-12</td>
+      <td>2024-04-19</td>
+      <td>2024-05-09</td>
+      <td>-5.99%</td>
+      <td>67</td>
+      <td>20.0</td>
+      <td>87.0</td>
+    </tr>
+  </tbody>
+</table>
+</body></html>

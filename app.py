@@ -1,8 +1,9 @@
 """
-Portfolio OS — Sprint 1 + Sprint 2 entry point.
+Portfolio OS — Sprint 1 + Sprint 2 + Sprint 3 entry point.
 
 Sprint 1: Downloads market data, validates, persists to parquet.
 Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
+Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
 """
 
 from pathlib import Path
@@ -19,7 +20,19 @@ from fx.converter import convert_prices_to_inr
 from fx.attribution import calculate_fx_attribution, attribution_summary
 from analytics.holdings_loader import load_holdings
 from analytics.portfolio_nav import calculate_portfolio_nav, calculate_asset_contributions
-from analytics.exposure import latest_exposure_snapshot
+from analytics.exposure import latest_exposure_snapshot, calculate_concentration_metrics
+from analytics.returns import build_returns_table
+from analytics.metrics import calculate_all_metrics
+from analytics.drawdown import calculate_drawdown_series, calculate_drawdown_periods
+from analytics.rolling import build_rolling_table
+from analytics.benchmark import compare_against_benchmark, build_benchmark_nav
+from analytics.charts import save_all_charts
+from reports.report_generator import (
+    export_metrics_csv,
+    export_benchmark_comparison_csv,
+    export_drawdown_periods_csv,
+    generate_html_report,
+)
 
 
 ASSET_MASTER = Path("configs/asset_master.csv")
@@ -100,8 +113,8 @@ def print_sprint1_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.DataF
 def run_sprint2(
     yahoo_data: dict[str, pd.DataFrame],
     master: pd.DataFrame,
-) -> None:
-    """Execute the full Sprint 2 pipeline: FX → NAV → Attribution → Exposure."""
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    """Execute Sprint 2 pipeline. Returns (inr_prices, nav, contributions, exposures)."""
     logger.info("")
     logger.info("=" * 60)
     logger.info("SPRINT 2 — FX NORMALIZATION & PORTFOLIO NAV")
@@ -144,6 +157,8 @@ def run_sprint2(
     # 8. Summary
     _print_sprint2_summary(nav, attr_summary)
 
+    return inr_prices, nav, contributions, exposures
+
 
 def _save(df: pd.DataFrame, filename: str) -> None:
     """Save a processed dataframe to data/processed/."""
@@ -177,11 +192,106 @@ def _print_sprint2_summary(nav: pd.DataFrame, attr_summary: pd.DataFrame) -> Non
         logger.info(f"    {p.name:30s} {size_kb:>8.1f} KB")
 
 
+# ── Sprint 3 ─────────────────────────────────────────────────────────────────
+
+
+def run_sprint3(
+    nav: pd.DataFrame,
+    inr_prices: pd.DataFrame,
+    contributions: pd.DataFrame,
+    exposures: dict[str, pd.DataFrame],
+    master: pd.DataFrame,
+) -> None:
+    """Execute Sprint 3 pipeline: Analytics → Risk → Rolling → Benchmark → Charts."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 3 — PORTFOLIO ANALYTICS & RISK ENGINE")
+    logger.info("=" * 60)
+
+    # 1. Returns
+    logger.info("\n▸ Step 1 — Returns Engine")
+    returns_df = build_returns_table(nav)
+    _save(returns_df, "returns.parquet")
+
+    # 2. Core risk metrics
+    logger.info("\n▸ Step 2 — Core Risk Metrics")
+    metrics = calculate_all_metrics(nav)
+
+    # 3. Drawdown analysis
+    logger.info("\n▸ Step 3 — Drawdown Analysis")
+    dd_series = calculate_drawdown_series(nav)
+    dd_periods = calculate_drawdown_periods(nav)
+    _save(dd_series, "drawdown_series.parquet")
+
+    # 4. Rolling analytics
+    logger.info("\n▸ Step 4 — Rolling Analytics")
+    # Build benchmark returns for beta calculation
+    spy_nav = build_benchmark_nav(inr_prices, "SPY")
+    bench_returns = None
+    if not spy_nav.empty:
+        spy_aligned = spy_nav.merge(nav[["date"]], on="date", how="inner")
+        spy_aligned["daily_return"] = spy_aligned["portfolio_nav"].pct_change()
+        bench_returns = spy_aligned["daily_return"]
+
+    rolling_df = build_rolling_table(nav, bench_returns)
+    _save(rolling_df, "rolling_analytics.parquet")
+
+    # 5. Concentration metrics
+    logger.info("\n▸ Step 5 — Concentration Metrics")
+    concentration = calculate_concentration_metrics(contributions)
+
+    # 6. Benchmark comparison
+    logger.info("\n▸ Step 6 — Benchmark Comparison")
+    comparison = pd.DataFrame()
+    if not spy_nav.empty:
+        comparison = compare_against_benchmark(nav, spy_nav, "SPY")
+
+    # 7. Charts
+    logger.info("\n▸ Step 7 — Visualization")
+    save_all_charts(
+        nav=nav,
+        returns_df=returns_df,
+        drawdown_df=dd_series,
+        rolling_df=rolling_df,
+        contributions=contributions,
+        exposure_snapshot=exposures,
+        benchmark_nav=spy_nav if not spy_nav.empty else None,
+        benchmark_name="SPY",
+    )
+
+    # 8. Reports
+    logger.info("\n▸ Step 8 — Report Export")
+    export_metrics_csv(metrics)
+    if not comparison.empty:
+        export_benchmark_comparison_csv(comparison)
+    if not dd_periods.empty:
+        export_drawdown_periods_csv(dd_periods)
+    generate_html_report(metrics, comparison, dd_periods)
+
+    _print_sprint3_summary(metrics, dd_periods)
+
+
+def _print_sprint3_summary(metrics: dict, dd_periods: pd.DataFrame) -> None:
+    """Final Sprint 3 summary."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 3 — SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"  CAGR            {metrics['cagr']:+.2%}")
+    logger.info(f"  Sharpe          {metrics['sharpe_ratio']:.3f}")
+    logger.info(f"  Sortino         {metrics['sortino_ratio']:.3f}")
+    logger.info(f"  Max Drawdown    {metrics['max_drawdown']:+.2%}")
+    logger.info(f"  Calmar          {metrics['calmar_ratio']:.3f}")
+
+    reports = list(Path("reports").glob("*"))
+    logger.info(f"\n  Reports & charts: {len(reports)} files in reports/")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 + Sprint 2)")
+    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 3)")
     logger.info("-" * 50)
 
     master = load_asset_master()
@@ -192,7 +302,10 @@ def main() -> None:
     print_sprint1_summary(yahoo_data, mf_data)
 
     # Sprint 2: FX normalization & portfolio engine
-    run_sprint2(yahoo_data, master)
+    inr_prices, nav, contributions, exposures = run_sprint2(yahoo_data, master)
+
+    # Sprint 3: Analytics & risk engine
+    run_sprint3(nav, inr_prices, contributions, exposures, master)
 
     logger.info("\n✓ Pipeline complete.")
 
