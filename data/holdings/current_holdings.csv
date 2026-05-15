@@ -1,0 +1,5 @@
+ticker,quantity,avg_buy_price,currency,asset_type
+AAPL,10,180.00,USD,equity
+SPY,5,420.00,USD,etf
+RELIANCE.NS,15,2500.00,INR,equity
+INFY.NS,25,1400.00,INR,equity
