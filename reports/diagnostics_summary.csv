@@ -1,0 +1,10 @@
+metric,grade,detail
+strategy_stability,STRONG,"{'grade': 'STRONG', 'consistency': np.float64(0.75), 'avg_test_sharpe': np.float64(0.866), 'avg_degradation': np.float64(1.715)}"
+turnover_efficiency,PASS,"{'score': 'PASS', 'detail': 'Turnover monitored via backtest'}"
+parameter_robustness,ROBUST,"{'grade': 'ROBUST', 'sharpe_cv': np.float64(0.024), 'positive_pct': np.float64(1.0), 'n_combos': 5}"
+regime_consistency,MODERATE,"{'grade': 'MODERATE', 'positive_regimes': '3/4', 'worst_regime': 'bear', 'worst_sharpe': np.float64(-1.523)}"
+friction_sensitivity,MODERATE,"{'grade': 'MODERATE', 'avg_cagr_impact': np.float64(-0.0547), 'worst_stressed_dd': np.float64(-0.4416)}"
+signal_quality,MODERATE,"{'grade': 'MODERATE', 'peak_ic': np.float64(0.1241), 'peak_horizon': 60, 'positive_horizons': 1}"
+tail_risk,MODERATE,"{'grade': 'MODERATE', 'prob_loss': np.float64(0.12), 'cvar_5pct': np.float64(-0.1913), 'worst_max_dd': np.float64(-0.5615)}"
+overfitting_status,ACCEPTABLE,
+n_overfitting_flags,1,

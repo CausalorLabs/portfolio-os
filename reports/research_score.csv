@@ -1,0 +1,2 @@
+total_score,grade,components,weights
+70.8,B,"{'sharpe_stability': np.float64(65.3), 'drawdown_consistency': 90.0, 'turnover_efficiency': 55.0, 'regime_robustness': np.float64(52.5), 'parameter_robustness': np.float64(100.0)}","{'sharpe_stability': 0.25, 'drawdown_consistency': 0.2, 'turnover_efficiency': 0.2, 'regime_robustness': 0.2, 'parameter_robustness': 0.15}"

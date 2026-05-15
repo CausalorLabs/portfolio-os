@@ -1,5 +1,5 @@
 """
-Portfolio OS — Sprint 1 → 6 entry point.
+Portfolio OS — Sprint 1 → 8 entry point.
 
 Sprint 1: Downloads market data, validates, persists to parquet.
 Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
@@ -7,6 +7,8 @@ Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
 Sprint 4: Feature engineering, signal generation, feature store.
 Sprint 5: Portfolio optimization, HRP, constraints, allocation engine.
 Sprint 6: Friction-aware backtesting, taxes, slippage, benchmarks.
+Sprint 7: Dashboard, recommendations, portfolio state.
+Sprint 8: Validation, robustness & research hardening.
 """
 
 from pathlib import Path
@@ -60,6 +62,17 @@ from backtests.engine import run_backtest
 from backtests.benchmark import run_benchmark_suite, compare_backtest_results
 from backtests.attribution import calculate_performance_attribution
 from backtests.reporting import generate_backtest_report
+
+from validation.walkforward import run_walkforward_validation
+from validation.regimes import identify_market_regimes, evaluate_regime_performance
+from validation.robustness import run_parameter_sensitivity, evaluate_stability_surface
+from validation.overfitting import detect_overfitting
+from validation.signal_decay import evaluate_forward_returns, calculate_signal_decay
+from validation.monte_carlo import run_monte_carlo_simulation
+from validation.stress_tests import run_stress_scenarios, simulate_liquidity_stress
+from validation.diagnostics import generate_diagnostics
+from validation.reporting import generate_validation_report
+from validation.research_score import calculate_research_score
 
 
 ASSET_MASTER = Path("configs/asset_master.csv")
@@ -648,11 +661,217 @@ def _print_sprint6_summary(
         logger.info(f"    {o}")
 
 
+# ── Sprint 8 ─────────────────────────────────────────────────────────────────
+
+
+def _hrp_strategy_factory(params: dict):
+    """Factory that returns a strategy_fn for given parameters."""
+    window = params.get("momentum_window", 120)
+
+    def strategy(returns: pd.DataFrame, tickers: list[str]) -> dict[str, float]:
+        from optimization.covariance import calculate_shrinkage_covariance
+        from optimization.hrp import allocate_hrp_weights
+        from optimization.constraints import apply_weight_caps
+
+        ret = returns[tickers].dropna()
+        if len(ret) < 60:
+            n = len(tickers)
+            return {t: 1.0 / n for t in tickers}
+
+        cov = calculate_shrinkage_covariance(ret, window=window)
+        hrp_df = allocate_hrp_weights(ret, cov=cov)
+        hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.05)
+        return dict(zip(hrp_df["ticker"], hrp_df["target_weight"]))
+
+    return strategy
+
+
+def run_sprint8(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
+    """Execute Sprint 8: Validation, Robustness & Research Hardening."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 8 — VALIDATION, ROBUSTNESS & RESEARCH HARDENING")
+    logger.info("=" * 60)
+
+    wide_prices = _build_wide_prices(inr_prices)
+    wide_returns = _build_wide_returns(inr_prices)
+    country_map = _build_country_map(master)
+    initial_capital = 1_000_000.0
+
+    # ── 1. Walk-forward validation ───────────────────────────────────────
+    logger.info("\n▸ Step 1 — Walk-Forward Validation")
+    wf_results = run_walkforward_validation(
+        wide_prices=wide_prices,
+        strategy_fn=_hrp_signal_strategy,
+        train_years=2,
+        test_years=1,
+        step_years=1,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        slippage_bps=10,
+        country_map=country_map,
+        warmup_days=120,
+    )
+    if not wf_results.empty:
+        _save(wf_results, "walkforward_results.parquet")
+
+    # ── 2. Market regime analysis ────────────────────────────────────────
+    logger.info("\n▸ Step 2 — Market Regime Analysis")
+    benchmark_ticker = "SPY" if "SPY" in wide_prices.columns else wide_prices.columns[0]
+    regimes = identify_market_regimes(wide_prices, benchmark_ticker=benchmark_ticker)
+    _save(regimes, "regime_analysis.parquet")
+
+    # Run backtest to get NAV for regime evaluation
+    primary = run_backtest(
+        wide_prices=wide_prices,
+        strategy_fn=_hrp_signal_strategy,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        slippage_bps=10,
+        country_map=country_map,
+        warmup_days=120,
+    )
+    nav_series = primary["nav_series"]
+    regime_perf = evaluate_regime_performance(nav_series, regimes)
+    if not regime_perf.empty:
+        _save(regime_perf, "regime_performance.parquet")
+
+    # ── 3. Parameter sensitivity ─────────────────────────────────────────
+    logger.info("\n▸ Step 3 — Parameter Sensitivity Analysis")
+    param_grid = {"momentum_window": [60, 90, 120, 180, 252]}
+    sensitivity = run_parameter_sensitivity(
+        wide_prices=wide_prices,
+        strategy_fn_factory=_hrp_strategy_factory,
+        param_grid=param_grid,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        slippage_bps=10,
+        country_map=country_map,
+        warmup_days=120,
+    )
+    if not sensitivity.empty:
+        _save(sensitivity, "parameter_sensitivity.parquet")
+        stability_surface = evaluate_stability_surface(sensitivity)
+        logger.info(f"  Stability score: {stability_surface.get('stability_score', 'N/A')}")
+
+    # ── 4. Overfitting detection ─────────────────────────────────────────
+    logger.info("\n▸ Step 4 — Overfitting Detection")
+    overfitting_report = detect_overfitting(
+        walkforward_results=wf_results,
+        regime_results=regime_perf if not regime_perf.empty else None,
+        sensitivity_results=sensitivity if not sensitivity.empty else None,
+    )
+    logger.info(f"  Assessment: {overfitting_report.get('assessment', 'N/A')}")
+
+    # ── 5. Signal decay ──────────────────────────────────────────────────
+    logger.info("\n▸ Step 5 — Signal Decay Analysis")
+    signal_decay_df = pd.DataFrame()
+    try:
+        from features.feature_store import load_feature_store
+        store = load_feature_store()
+        signal_scores = calculate_composite_score(store)
+        forward_returns = evaluate_forward_returns(signal_scores, wide_prices)
+        signal_decay_df = calculate_signal_decay(forward_returns)
+        if not signal_decay_df.empty:
+            _save(signal_decay_df, "signal_decay.parquet")
+    except Exception as e:
+        logger.warning(f"  Signal decay skipped: {e}")
+
+    # ── 6. Monte Carlo simulation ────────────────────────────────────────
+    logger.info("\n▸ Step 6 — Monte Carlo Simulation")
+    portfolio_returns = wide_returns.mean(axis=1)
+    mc_result = run_monte_carlo_simulation(
+        returns=portfolio_returns,
+        initial_value=initial_capital,
+        n_paths=1000,
+        n_days=252,
+        block_size=20,
+        seed=42,
+    )
+    mc_summary = mc_result.get("summary", {})
+    mc_summary_df = pd.DataFrame([mc_summary]) if mc_summary else pd.DataFrame()
+    if not mc_summary_df.empty:
+        _save(mc_summary_df, "monte_carlo_summary.parquet")
+
+    # ── 7. Stress scenarios ──────────────────────────────────────────────
+    logger.info("\n▸ Step 7 — Stress Testing")
+    stress_results = run_stress_scenarios(
+        wide_prices=wide_prices,
+        strategy_fn=_hrp_signal_strategy,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        base_slippage_bps=10,
+        country_map=country_map,
+        warmup_days=120,
+    )
+    if not stress_results.empty:
+        _save(stress_results, "stress_test_results.parquet")
+
+    # ── 8. Liquidity stress ──────────────────────────────────────────────
+    logger.info("\n▸ Step 8 — Liquidity Stress")
+    liquidity_results = simulate_liquidity_stress(
+        wide_prices=wide_prices,
+        strategy_fn=_hrp_signal_strategy,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        country_map=country_map,
+        warmup_days=120,
+    )
+    if not liquidity_results.empty:
+        _save(liquidity_results, "liquidity_stress.parquet")
+
+    # ── 9. Research diagnostics ──────────────────────────────────────────
+    logger.info("\n▸ Step 9 — Research Diagnostics")
+    diagnostics = generate_diagnostics(
+        walkforward_results=wf_results,
+        regime_results=regime_perf,
+        sensitivity_results=sensitivity,
+        stress_results=stress_results,
+        signal_decay=signal_decay_df if not signal_decay_df.empty else None,
+        monte_carlo_summary=mc_summary,
+        overfitting_report=overfitting_report,
+    )
+
+    # ── 10. Research quality score ───────────────────────────────────────
+    logger.info("\n▸ Step 10 — Research Quality Score")
+    research_score = calculate_research_score(
+        walkforward_results=wf_results,
+        regime_results=regime_perf,
+        sensitivity_results=sensitivity,
+        stress_results=stress_results,
+        signal_decay=signal_decay_df if not signal_decay_df.empty else None,
+    )
+
+    # ── 11. Generate validation reports ──────────────────────────────────
+    logger.info("\n▸ Step 11 — Generating Validation Reports")
+    generate_validation_report(
+        walkforward_results=wf_results,
+        regime_results=regime_perf,
+        sensitivity_results=sensitivity,
+        stress_results=stress_results,
+        signal_decay=signal_decay_df if not signal_decay_df.empty else None,
+        monte_carlo_summary=mc_summary,
+        overfitting_report=overfitting_report,
+        diagnostics=diagnostics,
+        research_score=research_score,
+    )
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    logger.info("\n" + "=" * 60)
+    logger.info("SPRINT 8 SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"  Walk-forward windows:  {len(wf_results)}")
+    logger.info(f"  Regime breakdown:      {len(regime_perf)} regimes")
+    logger.info(f"  Param combos tested:   {len(sensitivity)}")
+    logger.info(f"  Overfitting status:    {overfitting_report.get('assessment', 'N/A')}")
+    logger.info(f"  Research Score:        {research_score.get('total_score', 'N/A')}/100 ({research_score.get('grade', 'N/A')})")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 6)")
+    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 8)")
     logger.info("-" * 50)
 
     master = load_asset_master()
@@ -676,6 +895,9 @@ def main() -> None:
 
     # Sprint 6: Friction-aware backtesting
     run_sprint6(inr_prices, master)
+
+    # Sprint 8: Validation, robustness & research hardening
+    run_sprint8(inr_prices, master)
 
     logger.info("\n✓ Pipeline complete.")
 
