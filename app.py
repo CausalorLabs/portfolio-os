@@ -1,9 +1,10 @@
 """
-Portfolio OS — Sprint 1 + Sprint 2 + Sprint 3 entry point.
+Portfolio OS — Sprint 1 → 4 entry point.
 
 Sprint 1: Downloads market data, validates, persists to parquet.
 Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
 Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
+Sprint 4: Feature engineering, signal generation, feature store.
 """
 
 from pathlib import Path
@@ -33,6 +34,9 @@ from reports.report_generator import (
     export_drawdown_periods_csv,
     generate_html_report,
 )
+from features.feature_store import build_feature_store, save_feature_store
+from features.validators import validate_features, check_lookahead_bias
+from features.signal_ranker import calculate_composite_score
 
 
 ASSET_MASTER = Path("configs/asset_master.csv")
@@ -287,11 +291,54 @@ def _print_sprint3_summary(metrics: dict, dd_periods: pd.DataFrame) -> None:
     logger.info(f"\n  Reports & charts: {len(reports)} files in reports/")
 
 
+# ── Sprint 4 ─────────────────────────────────────────────────────────────────
+
+
+def run_sprint4(inr_prices: pd.DataFrame) -> None:
+    """Execute Sprint 4 pipeline: Feature Engineering → Store → Validate → Rank."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 4 — FEATURE ENGINEERING & SIGNAL LAYER")
+    logger.info("=" * 60)
+
+    # 1. Build feature store
+    logger.info("\n▸ Step 1 — Build Feature Store")
+    store = build_feature_store(inr_prices)
+    save_feature_store(store)
+
+    # 2. Validate features
+    logger.info("\n▸ Step 2 — Feature Validation")
+    validate_features(store)
+    check_lookahead_bias(store, inr_prices)
+
+    # 3. Signal ranking
+    logger.info("\n▸ Step 3 — Signal Ranking")
+    scores = calculate_composite_score(store)
+    _save(scores, "signal_scores.parquet")
+
+    _print_sprint4_summary(store, scores)
+
+
+def _print_sprint4_summary(store: pd.DataFrame, scores: pd.DataFrame) -> None:
+    """Final Sprint 4 summary."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 4 — SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"  Features computed:  {store['feature'].nunique()}")
+    logger.info(f"  Tickers:            {store['ticker'].nunique()}")
+    logger.info(f"  Total rows:         {len(store):,}")
+    logger.info(f"  Feature store:      data/processed/features.parquet")
+
+    size_mb = Path("data/processed/features.parquet").stat().st_size / (1024 * 1024)
+    logger.info(f"  Store size:         {size_mb:.2f} MB")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 3)")
+    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 4)")
     logger.info("-" * 50)
 
     master = load_asset_master()
@@ -306,6 +353,9 @@ def main() -> None:
 
     # Sprint 3: Analytics & risk engine
     run_sprint3(nav, inr_prices, contributions, exposures, master)
+
+    # Sprint 4: Feature engineering & signal layer
+    run_sprint4(inr_prices)
 
     logger.info("\n✓ Pipeline complete.")
 
