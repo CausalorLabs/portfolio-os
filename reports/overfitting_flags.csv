@@ -1,2 +1,2 @@
 flag,severity,detail
-REGIME_DEPENDENT,medium,Strategy performance is highly regime-dependent
+UNSTABLE_PARAMETERS,high,Sharpe CV across params (inf) shows instability

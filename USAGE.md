@@ -33,7 +33,7 @@ The main pipeline ingests data, computes analytics, optimizes allocations, backt
 python app.py
 ```
 
-This executes Sprints 1 through 8 sequentially:
+This executes the full pipeline sequentially:
 
 1. **Downloads market data** from Yahoo Finance and MFAPI (first run fetches ~5 years of history)
 2. **Normalizes all prices** to INR base currency

@@ -58,7 +58,7 @@ with st.sidebar:
     render_filters()
 
     st.divider()
-    st.caption("Sprint 1→8 • POC v0.8")
+    st.caption("Portfolio OS • v1.0")
 
 # ── Render selected page ─────────────────────────────────────────────────────
 

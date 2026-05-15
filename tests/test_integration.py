@@ -24,7 +24,7 @@ from validation.research_score import calculate_research_score
 
 
 class TestAnalyticsPipeline:
-    """Sprint 3 analytics chain: NAV → returns → metrics → drawdown."""
+    """Analytics chain: NAV → returns → metrics → drawdown."""
 
     def test_returns_to_metrics(self, nav_df):
         nav_df["daily_return"] = nav_df["portfolio_nav"].pct_change()
@@ -43,7 +43,7 @@ class TestAnalyticsPipeline:
 
 
 class TestOptimizationPipeline:
-    """Sprint 5: returns → covariance → HRP → constraints → weights."""
+    """Optimization: returns → covariance → HRP → constraints → weights."""
 
     def test_full_allocation_chain(self, wide_returns):
         cov = calculate_shrinkage_covariance(wide_returns, window=120)
@@ -56,7 +56,7 @@ class TestOptimizationPipeline:
 
 
 class TestBacktestPipeline:
-    """Sprint 6: prices → strategy → backtest → metrics."""
+    """Backtesting: prices → strategy → backtest → metrics."""
 
     def test_backtest_to_metrics(self, wide_prices, equal_weight_strategy, country_map):
         result = run_backtest(
@@ -114,7 +114,7 @@ class TestBacktestPipeline:
 
 
 class TestValidationPipeline:
-    """Sprint 8: backtest → regimes → overfitting → diagnostics → score."""
+    """Validation: backtest → regimes → overfitting → diagnostics → score."""
 
     def test_regime_to_overfitting(self, wide_prices, equal_weight_strategy, country_map):
         regimes = identify_market_regimes(

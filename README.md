@@ -1,6 +1,6 @@
 # Portfolio OS — Personal Portfolio Research Engine
 
-A modular, sprint-built quantitative portfolio research system that ingests multi-currency market data, normalizes it to a base currency, engineers alpha signals, optimizes allocations, backtests with realistic friction (taxes, slippage, transaction costs), validates out-of-sample, and surfaces everything through an interactive dashboard.
+A modular quantitative portfolio research system that ingests multi-currency market data, normalizes it to a base currency, engineers alpha signals, optimizes allocations, backtests with realistic friction (taxes, slippage, transaction costs), validates out-of-sample, and surfaces everything through an interactive dashboard.
 
 ---
 
@@ -28,28 +28,25 @@ Assets are declared in [`configs/asset_master.csv`](configs/asset_master.csv). C
 
 ## Architecture
 
-Portfolio OS is built as a pipeline of independent sprints, each adding a layer of capability. The entry point [`app.py`](app.py) orchestrates all sprints sequentially.
+Portfolio OS is built as a modular pipeline, each stage adding a layer of capability. The entry point [`app.py`](app.py) orchestrates all stages sequentially.
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Sprint 1    │────▶│  Sprint 2    │────▶│  Sprint 3    │────▶│  Sprint 4    │
-│  Ingestion   │     │  FX & NAV    │     │  Analytics   │     │  Features    │
+│  Ingestion   │────▶│  FX & NAV    │────▶│  Analytics   │────▶│  Features    │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
                                                                       │
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐            │
-│  Sprint 8    │◀────│  Sprint 6    │◀────│  Sprint 5    │◀───────────┘
-│  Validation  │     │  Backtesting │     │ Optimization │
+│  Validation  │◀────│  Backtesting │◀────│ Optimization │◀───────────┘
 └──────────────┘     └──────────────┘     └──────────────┘
                             │
                      ┌──────────────┐
-                     │  Sprint 7    │
                      │  Dashboard   │
                      └──────────────┘
 ```
 
-### Sprint Breakdown
+### Module Breakdown
 
-| Sprint | Module | Purpose |
+| # | Module | Purpose |
 |--------|--------|---------|
 | **1** | `ingestion/` | Download and validate market data from Yahoo Finance and MFAPI. Persist raw data as Parquet files. |
 | **2** | `fx/` | Normalize all prices to INR base currency. Calculate portfolio NAV, FX attribution, and exposure breakdowns. |
@@ -66,7 +63,7 @@ Portfolio OS is built as a pipeline of independent sprints, each adding a layer 
 
 ```
 portfolio-os/
-├── app.py                  # Main pipeline entry point (Sprint 1→8)
+├── app.py                  # Main pipeline entry point
 │
 ├── ingestion/              # Data loaders
 │   ├── yahoo_loader.py     #   Yahoo Finance downloader
@@ -270,17 +267,17 @@ portfolio-os/
 
 ## Development History
 
-| Commit | Sprint |
-|--------|--------|
-| `2e1e434` | Sprint 1: Project bootstrap — structure, loaders, validators |
-| `9531ca9` | Sprint 2: FX normalization, portfolio NAV, attribution, exposure |
-| `66d5ab2` | Sprint 3: Analytics & risk engine — returns, metrics, drawdown, rolling, benchmark, charts, reports |
-| `d51e4a8` | Sprint 4: Feature engineering — returns, momentum, volatility, trend, mean reversion, factors, signal ranker |
-| `eea4c3e` | Sprint 5: Portfolio optimization — HRP, baselines, constraints, signal-tilt, turnover, rebalance |
-| `3ca05b1` | Sprint 6: Friction-aware backtesting — taxes, slippage, costs, benchmarks, attribution |
-| `2a9ff07` | Sprint 7: Streamlit dashboard — overview, analytics, optimization, backtests, exposure, recommendations |
-| `d360945` | Sprint 7: Complete dashboard architecture per spec |
-| `6ecf628` | Sprint 8: Validation, robustness & research hardening |
+| Commit | Description |
+|--------|-------------|
+| `2e1e434` | Project bootstrap — structure, loaders, validators |
+| `9531ca9` | FX normalization, portfolio NAV, attribution, exposure |
+| `66d5ab2` | Analytics & risk engine — returns, metrics, drawdown, rolling, benchmark, charts, reports |
+| `d51e4a8` | Feature engineering — returns, momentum, volatility, trend, mean reversion, factors, signal ranker |
+| `eea4c3e` | Portfolio optimization — HRP, baselines, constraints, signal-tilt, turnover, rebalance |
+| `3ca05b1` | Friction-aware backtesting — taxes, slippage, costs, benchmarks, attribution |
+| `2a9ff07` | Streamlit dashboard — overview, analytics, optimization, backtests, exposure, recommendations |
+| `d360945` | Complete dashboard architecture per spec |
+| `6ecf628` | Validation, robustness & research hardening |
 
 ---
 

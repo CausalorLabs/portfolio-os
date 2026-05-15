@@ -1,6 +1,40 @@
 ticker,asset_name,asset_type,country,currency,exchange
-AAPL,Apple Inc,equity,US,USD,NASDAQ
-SPY,SPDR S&P 500 ETF Trust,etf,US,USD,NYSE
-RELIANCE.NS,Reliance Industries,equity,IN,INR,NSE
+ARE&M.NS,Amara Raja Energy & Mobility,equity,IN,INR,NSE
+BSE.NS,BSE Ltd,equity,IN,INR,NSE
+CASTROLIND.NS,Castrol India,equity,IN,INR,NSE
+CDSL.NS,Central Depository Services,equity,IN,INR,NSE
+COALINDIA.NS,Coal India,equity,IN,INR,NSE
+HAL.NS,Hindustan Aeronautics,equity,IN,INR,NSE
+IOC.NS,Indian Oil Corporation,equity,IN,INR,NSE
+IRFC.NS,Indian Railway Finance Corp,equity,IN,INR,NSE
+IREDA.NS,Indian Renewable Energy Dev Agency,equity,IN,INR,NSE
 INFY.NS,Infosys Ltd,equity,IN,INR,NSE
+ITCHOTELS.NS,ITC Hotels,equity,IN,INR,NSE
+ITC.NS,ITC Ltd,equity,IN,INR,NSE
+NHPC.NS,NHPC Ltd,equity,IN,INR,NSE
+OIL.NS,Oil India Ltd,equity,IN,INR,NSE
+PAYTM.NS,One97 Communications (Paytm),equity,IN,INR,NSE
+PNB.NS,Punjab National Bank,equity,IN,INR,NSE
+RELIANCE.NS,Reliance Industries,equity,IN,INR,NSE
+TMCV.NS,Tata Motors Commercial Vehicles,equity,IN,INR,NSE
+TMPV.NS,Tata Motors Passenger Vehicles,equity,IN,INR,NSE
+TATAPOWER.NS,Tata Power Company,equity,IN,INR,NSE
+TATASTEEL.NS,Tata Steel,equity,IN,INR,NSE
+VSTIND.NS,VST Industries,equity,IN,INR,NSE
+WIPRO.NS,Wipro Ltd,equity,IN,INR,NSE
+ZEEL.NS,Zee Entertainment,equity,IN,INR,NSE
+ZYDUSLIFE.NS,Zydus Lifesciences,equity,IN,INR,NSE
+BEL.NS,Bharat Electronics,equity,IN,INR,NSE
+JWL.NS,Jupiter Wagons,equity,IN,INR,NSE
+INDUSTOWER.NS,Indus Towers,equity,IN,INR,NSE
+ARIHANTCAP.NS,Arihant Capital Markets,equity,IN,INR,NSE
+JPPOWER.NS,Jaiprakash Power Ventures,equity,IN,INR,NSE
+GOLDIETF.NS,ICICI Prudential Gold ETF,etf,IN,INR,NSE
+VOO,Vanguard S&P 500 ETF,etf,US,USD,NYSE
+NVDA,NVIDIA Corp,equity,US,USD,NASDAQ
+GOOGL,Alphabet Inc,equity,US,USD,NASDAQ
+AAPL,Apple Inc,equity,US,USD,NASDAQ
+MSFT,Microsoft Corp,equity,US,USD,NASDAQ
+CRM,Salesforce Inc,equity,US,USD,NYSE
+SPY,SPDR S&P 500 ETF Trust,etf,US,USD,NYSE
 USDINR=X,USD/INR FX Rate,fx,GLOBAL,INR,FX

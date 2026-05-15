@@ -147,6 +147,13 @@ def evaluate_regime_performance(
         }
         results.append(metrics)
 
+    if not results:
+        logger.warning("No regimes with sufficient data (min 10 days)")
+        return pd.DataFrame(columns=[
+            "regime", "n_days", "pct_of_total", "cagr", "volatility",
+            "sharpe", "max_drawdown", "avg_daily_return", "win_rate",
+        ])
+
     df = pd.DataFrame(results).sort_values("n_days", ascending=False)
 
     logger.info("\nRegime Performance Decomposition:")

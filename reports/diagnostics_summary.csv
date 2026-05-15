@@ -1,10 +1,10 @@
 metric,grade,detail
-strategy_stability,STRONG,"{'grade': 'STRONG', 'consistency': np.float64(0.75), 'avg_test_sharpe': np.float64(0.866), 'avg_degradation': np.float64(1.715)}"
-turnover_efficiency,PASS,"{'score': 'PASS', 'detail': 'Turnover monitored via backtest'}"
-parameter_robustness,ROBUST,"{'grade': 'ROBUST', 'sharpe_cv': np.float64(0.024), 'positive_pct': np.float64(1.0), 'n_combos': 5}"
-regime_consistency,MODERATE,"{'grade': 'MODERATE', 'positive_regimes': '3/4', 'worst_regime': 'bear', 'worst_sharpe': np.float64(-1.523)}"
-friction_sensitivity,MODERATE,"{'grade': 'MODERATE', 'avg_cagr_impact': np.float64(-0.0615), 'worst_stressed_dd': np.float64(-0.477)}"
-signal_quality,MODERATE,"{'grade': 'MODERATE', 'peak_ic': np.float64(0.1241), 'peak_horizon': 60, 'positive_horizons': 1}"
-tail_risk,MODERATE,"{'grade': 'MODERATE', 'prob_loss': np.float64(0.12), 'cvar_5pct': np.float64(-0.1913), 'worst_max_dd': np.float64(-0.5615)}"
-overfitting_status,ACCEPTABLE,
+strategy_stability,N/A,"{'score': 'N/A', 'detail': 'No walk-forward data'}"
+turnover_efficiency,N/A,{'score': 'N/A'}
+parameter_robustness,FRAGILE,"{'grade': 'FRAGILE', 'sharpe_cv': inf, 'positive_pct': np.float64(0.0), 'n_combos': 5}"
+regime_consistency,N/A,"{'score': 'N/A', 'detail': 'No regime data'}"
+friction_sensitivity,RESILIENT,"{'grade': 'RESILIENT', 'avg_cagr_impact': np.float64(0.0), 'worst_stressed_dd': np.float64(0.0)}"
+signal_quality,STRONG,"{'grade': 'STRONG', 'peak_ic': np.float64(0.1994), 'peak_horizon': 20, 'positive_horizons': 3}"
+tail_risk,ELEVATED,"{'grade': 'ELEVATED', 'prob_loss': np.float64(0.884), 'cvar_5pct': np.float64(-0.1618), 'worst_max_dd': np.float64(-0.2239)}"
+overfitting_status,POSSIBLE_OVERFIT,
 n_overfitting_flags,1,

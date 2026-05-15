@@ -1,14 +1,15 @@
 """
-Portfolio OS — Sprint 1 → 8 entry point.
+Portfolio OS — main pipeline entry point.
 
-Sprint 1: Downloads market data, validates, persists to parquet.
-Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
-Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
-Sprint 4: Feature engineering, signal generation, feature store.
-Sprint 5: Portfolio optimization, HRP, constraints, allocation engine.
-Sprint 6: Friction-aware backtesting, taxes, slippage, benchmarks.
-Sprint 7: Dashboard, recommendations, portfolio state.
-Sprint 8: Validation, robustness & research hardening.
+Pipeline stages:
+  1. Data ingestion — downloads market data, validates, persists to parquet.
+  2. FX normalization — portfolio NAV, attribution, exposure.
+  3. Analytics — risk metrics, rolling diagnostics, benchmarks.
+  4. Feature engineering — signal generation, feature store.
+  5. Optimization — HRP, constraints, allocation engine.
+  6. Backtesting — friction-aware, taxes, slippage, benchmarks.
+  7. Dashboard — recommendations, portfolio state.
+  8. Validation — robustness & research hardening.
 """
 
 from pathlib import Path
@@ -89,7 +90,7 @@ def load_asset_master() -> pd.DataFrame:
     return df
 
 
-# ── Sprint 1 ─────────────────────────────────────────────────────────────────
+# ── Data Ingestion ────────────────────────────────────────────────────────────
 
 
 def run_yahoo_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
@@ -118,10 +119,10 @@ def run_mf_pipeline() -> pd.DataFrame:
     return df
 
 
-def print_sprint1_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.DataFrame) -> None:
+def print_ingestion_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.DataFrame) -> None:
     """Print a concise summary of all downloaded data."""
     logger.info("=" * 60)
-    logger.info("SPRINT 1 — DATA LAKE SUMMARY")
+    logger.info("DATA LAKE SUMMARY")
     logger.info("=" * 60)
 
     for ticker, df in yahoo_data.items():
@@ -147,17 +148,17 @@ def print_sprint1_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.DataF
         logger.info(f"  {p.name:30s} {size_kb:>8.1f} KB")
 
 
-# ── Sprint 2 ─────────────────────────────────────────────────────────────────
+# ── FX Normalization & NAV ─────────────────────────────────────────────────────
 
 
-def run_sprint2(
+def run_fx_and_nav(
     yahoo_data: dict[str, pd.DataFrame],
     master: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
-    """Execute Sprint 2 pipeline. Returns (inr_prices, nav, contributions, exposures)."""
+    """FX normalization & portfolio NAV pipeline. Returns (inr_prices, nav, contributions, exposures)."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 2 — FX NORMALIZATION & PORTFOLIO NAV")
+    logger.info("FX NORMALIZATION & PORTFOLIO NAV")
     logger.info("=" * 60)
 
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -195,7 +196,7 @@ def run_sprint2(
     exposures = latest_exposure_snapshot(contributions, master)
 
     # 8. Summary
-    _print_sprint2_summary(nav, attr_summary)
+    _print_fx_summary(nav, attr_summary)
 
     return inr_prices, nav, contributions, exposures
 
@@ -207,11 +208,11 @@ def _save(df: pd.DataFrame, filename: str) -> None:
     logger.info(f"Saved → {path}  ({len(df)} rows)")
 
 
-def _print_sprint2_summary(nav: pd.DataFrame, attr_summary: pd.DataFrame) -> None:
-    """Final Sprint 2 summary."""
+def _print_fx_summary(nav: pd.DataFrame, attr_summary: pd.DataFrame) -> None:
+    """FX & NAV summary."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 2 — SUMMARY")
+    logger.info("FX & NAV — SUMMARY")
     logger.info("=" * 60)
 
     if not nav.empty:
@@ -232,20 +233,20 @@ def _print_sprint2_summary(nav: pd.DataFrame, attr_summary: pd.DataFrame) -> Non
         logger.info(f"    {p.name:30s} {size_kb:>8.1f} KB")
 
 
-# ── Sprint 3 ─────────────────────────────────────────────────────────────────
+# ── Analytics & Risk Engine ────────────────────────────────────────────────────
 
 
-def run_sprint3(
+def run_analytics(
     nav: pd.DataFrame,
     inr_prices: pd.DataFrame,
     contributions: pd.DataFrame,
     exposures: dict[str, pd.DataFrame],
     master: pd.DataFrame,
 ) -> None:
-    """Execute Sprint 3 pipeline: Analytics → Risk → Rolling → Benchmark → Charts."""
+    """Analytics pipeline: Returns → Risk → Rolling → Benchmark → Charts."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 3 — PORTFOLIO ANALYTICS & RISK ENGINE")
+    logger.info("PORTFOLIO ANALYTICS & RISK ENGINE")
     logger.info("=" * 60)
 
     # 1. Returns
@@ -308,14 +309,14 @@ def run_sprint3(
         export_drawdown_periods_csv(dd_periods)
     generate_html_report(metrics, comparison, dd_periods)
 
-    _print_sprint3_summary(metrics, dd_periods)
+    _print_analytics_summary(metrics, dd_periods)
 
 
-def _print_sprint3_summary(metrics: dict, dd_periods: pd.DataFrame) -> None:
-    """Final Sprint 3 summary."""
+def _print_analytics_summary(metrics: dict, dd_periods: pd.DataFrame) -> None:
+    """Analytics summary."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 3 — SUMMARY")
+    logger.info("ANALYTICS — SUMMARY")
     logger.info("=" * 60)
     logger.info(f"  CAGR            {metrics['cagr']:+.2%}")
     logger.info(f"  Sharpe          {metrics['sharpe_ratio']:.3f}")
@@ -327,14 +328,14 @@ def _print_sprint3_summary(metrics: dict, dd_periods: pd.DataFrame) -> None:
     logger.info(f"\n  Reports & charts: {len(reports)} files in reports/")
 
 
-# ── Sprint 4 ─────────────────────────────────────────────────────────────────
+# ── Feature Engineering ───────────────────────────────────────────────────────
 
 
-def run_sprint4(inr_prices: pd.DataFrame) -> None:
-    """Execute Sprint 4 pipeline: Feature Engineering → Store → Validate → Rank."""
+def run_feature_engineering(inr_prices: pd.DataFrame) -> None:
+    """Feature engineering pipeline: Build Store → Validate → Rank."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 4 — FEATURE ENGINEERING & SIGNAL LAYER")
+    logger.info("FEATURE ENGINEERING & SIGNAL LAYER")
     logger.info("=" * 60)
 
     # 1. Build feature store
@@ -352,14 +353,14 @@ def run_sprint4(inr_prices: pd.DataFrame) -> None:
     scores = calculate_composite_score(store)
     _save(scores, "signal_scores.parquet")
 
-    _print_sprint4_summary(store, scores)
+    _print_feature_summary(store, scores)
 
 
-def _print_sprint4_summary(store: pd.DataFrame, scores: pd.DataFrame) -> None:
-    """Final Sprint 4 summary."""
+def _print_feature_summary(store: pd.DataFrame, scores: pd.DataFrame) -> None:
+    """Feature engineering summary."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 4 — SUMMARY")
+    logger.info("FEATURES — SUMMARY")
     logger.info("=" * 60)
     logger.info(f"  Features computed:  {store['feature'].nunique()}")
     logger.info(f"  Tickers:            {store['ticker'].nunique()}")
@@ -370,7 +371,7 @@ def _print_sprint4_summary(store: pd.DataFrame, scores: pd.DataFrame) -> None:
     logger.info(f"  Store size:         {size_mb:.2f} MB")
 
 
-# ── Sprint 5 ─────────────────────────────────────────────────────────────────
+# ── Portfolio Optimization ─────────────────────────────────────────────────────
 
 
 def _build_wide_returns(inr_prices: pd.DataFrame) -> pd.DataFrame:
@@ -385,16 +386,16 @@ def _build_wide_returns(inr_prices: pd.DataFrame) -> pd.DataFrame:
     return returns
 
 
-def run_sprint5(
+def run_optimization(
     inr_prices: pd.DataFrame,
     nav: pd.DataFrame,
     contributions: pd.DataFrame,
     master: pd.DataFrame,
 ) -> None:
-    """Execute Sprint 5: Portfolio Optimization Engine."""
+    """Portfolio optimization pipeline: baselines → HRP → constraints → signal tilt → rebalance."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 5 — PORTFOLIO OPTIMIZATION ENGINE")
+    logger.info("PORTFOLIO OPTIMIZATION ENGINE")
     logger.info("=" * 60)
 
     # Prepare wide-format returns
@@ -486,19 +487,19 @@ def run_sprint5(
     # Save final weights
     _save(tilted, "target_weights.parquet")
 
-    _print_sprint5_summary(strategies, tilted, turnover_df, rebalance)
+    _print_optimization_summary(strategies, tilted, turnover_df, rebalance)
 
 
-def _print_sprint5_summary(
+def _print_optimization_summary(
     strategies: dict,
     final: pd.DataFrame,
     turnover_df: pd.DataFrame,
     rebalance: dict,
 ) -> None:
-    """Final Sprint 5 summary."""
+    """Optimization summary."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 5 — SUMMARY")
+    logger.info("OPTIMIZATION — SUMMARY")
     logger.info("=" * 60)
     logger.info(f"  Strategies compared: {len(strategies)}")
     logger.info(f"  Final strategy:      {final['strategy'].iloc[0]}")
@@ -522,7 +523,7 @@ def _print_sprint5_summary(
         logger.info(f"    {o}")
 
 
-# ── Sprint 6 ─────────────────────────────────────────────────────────────────
+# ── Friction-Aware Backtesting ─────────────────────────────────────────────────
 
 
 def _build_wide_prices(inr_prices: pd.DataFrame) -> pd.DataFrame:
@@ -557,11 +558,11 @@ def _hrp_signal_strategy(returns: pd.DataFrame, tickers: list[str]) -> dict[str,
     return dict(zip(hrp_df["ticker"], hrp_df["target_weight"]))
 
 
-def run_sprint6(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
-    """Execute Sprint 6: Friction-Aware Backtesting Engine."""
+def run_backtesting(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
+    """Friction-aware backtesting pipeline: strategy → benchmarks → attribution → reports."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 6 — FRICTION-AWARE BACKTESTING ENGINE")
+    logger.info("FRICTION-AWARE BACKTESTING ENGINE")
     logger.info("=" * 60)
 
     wide_prices = _build_wide_prices(inr_prices)
@@ -616,18 +617,18 @@ def run_sprint6(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
         ledger_summary=primary["ledger"].summary(),
     )
 
-    _print_sprint6_summary(comparison, attribution, primary)
+    _print_backtest_summary(comparison, attribution, primary)
 
 
-def _print_sprint6_summary(
+def _print_backtest_summary(
     comparison: pd.DataFrame,
     attribution: dict,
     primary: dict,
 ) -> None:
-    """Final Sprint 6 summary."""
+    """Backtest summary."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 6 — SUMMARY")
+    logger.info("BACKTESTING — SUMMARY")
     logger.info("=" * 60)
 
     if not comparison.empty and "hrp_optimized" in comparison.index:
@@ -661,7 +662,7 @@ def _print_sprint6_summary(
         logger.info(f"    {o}")
 
 
-# ── Sprint 8 ─────────────────────────────────────────────────────────────────
+# ── Validation & Research Hardening ────────────────────────────────────────────
 
 
 def _hrp_strategy_factory(params: dict):
@@ -686,11 +687,11 @@ def _hrp_strategy_factory(params: dict):
     return strategy
 
 
-def run_sprint8(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
-    """Execute Sprint 8: Validation, Robustness & Research Hardening."""
+def run_validation(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
+    """Validation pipeline: walk-forward → regimes → sensitivity → overfitting → stress → diagnostics."""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("SPRINT 8 — VALIDATION, ROBUSTNESS & RESEARCH HARDENING")
+    logger.info("VALIDATION, ROBUSTNESS & RESEARCH HARDENING")
     logger.info("=" * 60)
 
     wide_prices = _build_wide_prices(inr_prices)
@@ -858,7 +859,7 @@ def run_sprint8(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
 
     # ── Summary ──────────────────────────────────────────────────────────
     logger.info("\n" + "=" * 60)
-    logger.info("SPRINT 8 SUMMARY")
+    logger.info("VALIDATION — SUMMARY")
     logger.info("=" * 60)
     logger.info(f"  Walk-forward windows:  {len(wf_results)}")
     logger.info(f"  Regime breakdown:      {len(regime_perf)} regimes")
@@ -871,33 +872,33 @@ def run_sprint8(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 8)")
+    logger.info("Portfolio OS — Full Pipeline")
     logger.info("-" * 50)
 
     master = load_asset_master()
 
-    # Sprint 1: Data ingestion
+    # 1. Data ingestion
     yahoo_data = run_yahoo_pipeline(master)
     mf_data = run_mf_pipeline()
-    print_sprint1_summary(yahoo_data, mf_data)
+    print_ingestion_summary(yahoo_data, mf_data)
 
-    # Sprint 2: FX normalization & portfolio engine
-    inr_prices, nav, contributions, exposures = run_sprint2(yahoo_data, master)
+    # 2. FX normalization & portfolio engine
+    inr_prices, nav, contributions, exposures = run_fx_and_nav(yahoo_data, master)
 
-    # Sprint 3: Analytics & risk engine
-    run_sprint3(nav, inr_prices, contributions, exposures, master)
+    # 3. Analytics & risk engine
+    run_analytics(nav, inr_prices, contributions, exposures, master)
 
-    # Sprint 4: Feature engineering & signal layer
-    run_sprint4(inr_prices)
+    # 4. Feature engineering & signal layer
+    run_feature_engineering(inr_prices)
 
-    # Sprint 5: Portfolio optimization engine
-    run_sprint5(inr_prices, nav, contributions, master)
+    # 5. Portfolio optimization engine
+    run_optimization(inr_prices, nav, contributions, master)
 
-    # Sprint 6: Friction-aware backtesting
-    run_sprint6(inr_prices, master)
+    # 6. Friction-aware backtesting
+    run_backtesting(inr_prices, master)
 
-    # Sprint 8: Validation, robustness & research hardening
-    run_sprint8(inr_prices, master)
+    # 7. Validation, robustness & research hardening
+    run_validation(inr_prices, master)
 
     logger.info("\n✓ Pipeline complete.")
 
