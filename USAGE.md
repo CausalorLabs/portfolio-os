@@ -93,19 +93,38 @@ Press `Ctrl+C` in the terminal where Streamlit is running.
 Edit [`configs/asset_master.csv`](configs/asset_master.csv) to add or remove assets:
 
 ```csv
-ticker,asset_name,asset_type,country,currency,exchange
-AAPL,Apple Inc,equity,US,USD,NASDAQ
-SPY,SPDR S&P 500 ETF Trust,etf,US,USD,NYSE
-RELIANCE.NS,Reliance Industries,equity,IN,INR,NSE
-INFY.NS,Infosys Ltd,equity,IN,INR,NSE
-USDINR=X,USD/INR FX Rate,fx,GLOBAL,INR,FX
+ticker,asset_name,asset_type,country,currency,exchange,annual_rate
+AAPL,Apple Inc,equity,US,USD,NASDAQ,
+RELIANCE.NS,Reliance Industries,equity,IN,INR,NSE,
+VOO,Vanguard S&P 500 ETF,etf,US,USD,NYSE,
+MF_119598,SBI Bluechip Fund - Direct Growth,mf,IN,INR,AMFI,
+EPF,Employee Provident Fund,fixed_income,IN,INR,GOV,8.25
+PPF,Public Provident Fund,fixed_income,IN,INR,GOV,7.10
+FD_SBI,SBI Fixed Deposit,fixed_income,IN,INR,BANK,7.10
+SGB,Sovereign Gold Bond,fixed_income,IN,INR,GOV,2.50
+GOLD_PHYS,Physical Gold,metal,IN,INR,PHYSICAL,
+SILVER_PHYS,Physical Silver,metal,IN,INR,PHYSICAL,
+USDINR=X,USD/INR FX Rate,fx,GLOBAL,INR,FX,
 ```
 
+**Supported asset types:**
+
+| Type | Source | Description |
+|------|--------|-------------|
+| `equity` | Yahoo Finance | Individual stocks (NSE/NASDAQ/NYSE) |
+| `etf` | Yahoo Finance | Exchange-traded funds |
+| `mf` | MFAPI (AMFI) | Indian mutual funds — ticker must be `MF_<scheme_code>` |
+| `fixed_income` | Synthetic | EPF, PPF, FD, NPS, SGB — set `annual_rate` column |
+| `metal` | Yahoo (commodity) | Physical gold/silver — uses GC=F/SI=F as price proxy |
+| `fx` | Yahoo Finance | Currency pairs — exactly one USD/INR row required |
+
 **Rules:**
-- `ticker` must be a valid Yahoo Finance symbol (or a `=X` FX pair)
-- `country` must be `US`, `IN`, or `GLOBAL` (used for tax and cost calculations)
+- `ticker` must be a valid Yahoo Finance symbol, `MF_<AMFI code>`, or a custom label for fixed-income
+- `country` must be `US`, `IN`, or `GLOBAL`
 - `currency` determines whether FX conversion is applied
+- `annual_rate` is required for `fixed_income` (percentage, e.g. 8.25 for 8.25%)
 - There must be exactly one `fx` row for the USD/INR pair
+- Fixed-income and metal assets are included in total NAV but excluded from optimization/backtesting
 
 ### Holdings
 
@@ -114,10 +133,22 @@ Edit [`data/holdings/current_holdings.csv`](data/holdings/current_holdings.csv) 
 ```csv
 ticker,quantity,avg_buy_price,currency,asset_type
 AAPL,10,180.00,USD,equity
-SPY,5,420.00,USD,etf
 RELIANCE.NS,15,2500.00,INR,equity
-INFY.NS,25,1400.00,INR,equity
+VOO,5,420.00,USD,etf
+MF_119598,1000,85.50,INR,mf
+EPF,1,500000.00,INR,fixed_income
+PPF,1,300000.00,INR,fixed_income
+FD_SBI,1,200000.00,INR,fixed_income
+SGB,10,6500.00,INR,fixed_income
+GOLD_PHYS,50,7500.00,INR,metal
+SILVER_PHYS,1000,95.00,INR,metal
 ```
+
+**Notes:**
+- For **mutual funds**, `quantity` is the number of units, `avg_buy_price` is the average NAV at purchase
+- For **fixed-income** (EPF/PPF/FD/NPS), use `quantity=1` and `avg_buy_price` as the total principal amount
+- For **SGB**, `quantity` is the number of bond units, `avg_buy_price` is the issue price per unit
+- For **physical metals**, `quantity` is grams, `avg_buy_price` is the cost per gram (INR)
 
 ### Environment Variables
 

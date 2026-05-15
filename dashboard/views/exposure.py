@@ -83,7 +83,7 @@ def render() -> None:
         asset_class = merged.groupby("asset_type")["weight_pct"].sum().reset_index()
         fig = px.pie(
             asset_class, values="weight_pct", names="asset_type",
-            color_discrete_sequence=["#ff6b6b", "#6c63ff", "#00d4aa"],
+            color_discrete_sequence=["#ff6b6b", "#6c63ff", "#00d4aa", "#ff9f43", "#feca57", "#54a0ff"],
         )
         fig.update_layout(
             height=300, margin=dict(l=0, r=0, t=10, b=0),

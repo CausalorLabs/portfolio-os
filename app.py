@@ -19,6 +19,11 @@ from loguru import logger
 
 from ingestion.yahoo_loader import download_yahoo_data, download_batch
 from ingestion.mf_loader import download_mf_data, get_scheme_name
+from ingestion.fixed_income_loader import (
+    generate_fixed_income_prices,
+    generate_metal_proxy_prices,
+    METAL_YAHOO_MAP,
+)
 from utils.validators import validate_dataframe
 
 from fx.fx_loader import get_fx_series
@@ -79,8 +84,12 @@ from validation.research_score import calculate_research_score
 ASSET_MASTER = Path("configs/asset_master.csv")
 PROCESSED_DIR = Path("data/processed")
 
-# SBI Bluechip Fund — Direct Growth (example Indian MF)
-TEST_MF_SCHEME = "119598"
+# Asset types that have market prices (eligible for optimization/features/backtests)
+MARKET_ASSET_TYPES = {"equity", "etf", "mf", "metal"}
+# Asset types with fixed rates (synthetic prices, excluded from optimization)
+FIXED_ASSET_TYPES = {"fixed_income"}
+# All portfolio asset types (everything except fx)
+PORTFOLIO_ASSET_TYPES = MARKET_ASSET_TYPES | FIXED_ASSET_TYPES
 
 
 def load_asset_master() -> pd.DataFrame:
@@ -94,8 +103,9 @@ def load_asset_master() -> pd.DataFrame:
 
 
 def run_yahoo_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """Download and validate all Yahoo-sourced assets."""
-    yahoo_tickers = master[master["asset_type"] != "mf"]["ticker"].tolist()
+    """Download and validate all Yahoo-sourced assets (equity, etf, fx)."""
+    yahoo_types = {"equity", "etf", "fx"}
+    yahoo_tickers = master[master["asset_type"].isin(yahoo_types)]["ticker"].tolist()
     results: dict[str, pd.DataFrame] = {}
 
     for ticker in yahoo_tickers:
@@ -107,25 +117,74 @@ def run_yahoo_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return results
 
 
-def run_mf_pipeline() -> pd.DataFrame:
-    """Download and validate a test mutual fund."""
-    name = get_scheme_name(TEST_MF_SCHEME)
-    logger.info(f"MF scheme: {name}")
+def run_mf_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Download and validate all mutual funds from asset_master."""
+    mf_rows = master[master["asset_type"] == "mf"]
+    results: dict[str, pd.DataFrame] = {}
 
-    df = download_mf_data(TEST_MF_SCHEME)
-    if not df.empty:
-        validate_dataframe(df, f"MF_{TEST_MF_SCHEME}")
+    for _, row in mf_rows.iterrows():
+        ticker = row["ticker"]
+        scheme_code = ticker.replace("MF_", "")
+        name = get_scheme_name(scheme_code)
+        logger.info(f"MF scheme: {name} ({scheme_code})")
 
-    return df
+        df = download_mf_data(scheme_code)
+        if not df.empty:
+            validate_dataframe(df, ticker)
+            # Reshape MF NAV data to OHLCV format for pipeline compatibility
+            df = df.rename(columns={"nav": "adj_close"})
+            df["open"] = df["adj_close"]
+            df["high"] = df["adj_close"]
+            df["low"] = df["adj_close"]
+            df["close"] = df["adj_close"]
+            df["volume"] = 0
+        results[ticker] = df
+
+    return results
 
 
-def print_ingestion_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.DataFrame) -> None:
+def run_fixed_income_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Generate synthetic daily prices for fixed-income instruments."""
+    fi_rows = master[master["asset_type"] == "fixed_income"]
+    results: dict[str, pd.DataFrame] = {}
+
+    for _, row in fi_rows.iterrows():
+        ticker = row["ticker"]
+        rate = row.get("annual_rate", 0.0)
+        if pd.isna(rate) or rate == 0:
+            logger.warning(f"{ticker}: no annual_rate set, using 0% — update asset_master.csv")
+            rate = 0.0
+        df = generate_fixed_income_prices(ticker, rate)
+        results[ticker] = df
+
+    return results
+
+
+def run_metal_pipeline(master: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Download commodity prices for physical metals."""
+    metal_rows = master[master["asset_type"] == "metal"]
+    results: dict[str, pd.DataFrame] = {}
+
+    for _, row in metal_rows.iterrows():
+        ticker = row["ticker"]
+        yahoo_ticker = METAL_YAHOO_MAP.get(ticker)
+        if yahoo_ticker:
+            df = generate_metal_proxy_prices(ticker, yahoo_ticker)
+        else:
+            logger.warning(f"{ticker}: no Yahoo commodity mapping — skipping")
+            df = pd.DataFrame()
+        results[ticker] = df
+
+    return results
+
+
+def print_ingestion_summary(all_data: dict[str, pd.DataFrame]) -> None:
     """Print a concise summary of all downloaded data."""
     logger.info("=" * 60)
     logger.info("DATA LAKE SUMMARY")
     logger.info("=" * 60)
 
-    for ticker, df in yahoo_data.items():
+    for ticker, df in sorted(all_data.items()):
         if df.empty:
             logger.warning(f"  {ticker:15s} — NO DATA")
         else:
@@ -133,12 +192,6 @@ def print_ingestion_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.Dat
                 f"  {ticker:15s} — {len(df):>6} rows | "
                 f"{df['date'].min().date()} → {df['date'].max().date()}"
             )
-
-    if not mf_data.empty:
-        logger.info(
-            f"  {'MF_' + TEST_MF_SCHEME:15s} — {len(mf_data):>6} rows | "
-            f"{mf_data['date'].min().date()} → {mf_data['date'].max().date()}"
-        )
 
     raw_dir = Path("data/raw")
     parquets = list(raw_dir.glob("*.parquet"))
@@ -152,7 +205,7 @@ def print_ingestion_summary(yahoo_data: dict[str, pd.DataFrame], mf_data: pd.Dat
 
 
 def run_fx_and_nav(
-    yahoo_data: dict[str, pd.DataFrame],
+    all_data: dict[str, pd.DataFrame],
     master: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """FX normalization & portfolio NAV pipeline. Returns (inr_prices, nav, contributions, exposures)."""
@@ -173,7 +226,7 @@ def run_fx_and_nav(
 
     # 3. FX conversion
     logger.info("\n▸ Step 3 — INR Price Conversion")
-    inr_prices = convert_prices_to_inr(yahoo_data, master, fx_series)
+    inr_prices = convert_prices_to_inr(all_data, master, fx_series)
     _save(inr_prices, "inr_prices.parquet")
 
     # 4. Portfolio NAV
@@ -422,7 +475,7 @@ def run_optimization(
     # ── Step 4: Constraints ──────────────────────────────────────────────
     logger.info("\n▸ Step 4 — Constraint Engine")
     hrp_constrained = apply_weight_caps(
-        hrp, max_weight=0.40, min_weight=0.05, cash_reserve=0.0
+        hrp, max_weight=0.40, min_weight=0.01, cash_reserve=0.0
     )
     hrp_constrained = apply_country_constraints(
         hrp_constrained, master, country_caps={"US": 0.60, "IN": 0.60}
@@ -554,7 +607,7 @@ def _hrp_signal_strategy(returns: pd.DataFrame, tickers: list[str]) -> dict[str,
 
     cov = calculate_shrinkage_covariance(ret, window=120)
     hrp_df = allocate_hrp_weights(ret, cov=cov)
-    hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.05)
+    hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.01)
     return dict(zip(hrp_df["ticker"], hrp_df["target_weight"]))
 
 
@@ -681,7 +734,7 @@ def _hrp_strategy_factory(params: dict):
 
         cov = calculate_shrinkage_covariance(ret, window=window)
         hrp_df = allocate_hrp_weights(ret, cov=cov)
-        hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.05)
+        hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.01)
         return dict(zip(hrp_df["ticker"], hrp_df["target_weight"]))
 
     return strategy
@@ -877,28 +930,46 @@ def main() -> None:
 
     master = load_asset_master()
 
-    # 1. Data ingestion
+    # 1. Data ingestion — all asset types
     yahoo_data = run_yahoo_pipeline(master)
-    mf_data = run_mf_pipeline()
-    print_ingestion_summary(yahoo_data, mf_data)
+    mf_data = run_mf_pipeline(master)
+    fi_data = run_fixed_income_pipeline(master)
+    metal_data = run_metal_pipeline(master)
 
-    # 2. FX normalization & portfolio engine
-    inr_prices, nav, contributions, exposures = run_fx_and_nav(yahoo_data, master)
+    # Merge all data sources into a single dict for the pipeline
+    all_data = {**yahoo_data, **mf_data, **fi_data, **metal_data}
+    print_ingestion_summary(all_data)
 
-    # 3. Analytics & risk engine
+    # 2. FX normalization & portfolio engine (all assets)
+    inr_prices, nav, contributions, exposures = run_fx_and_nav(all_data, master)
+
+    # 3. Analytics & risk engine (all assets — NAV includes everything)
     run_analytics(nav, inr_prices, contributions, exposures, master)
 
-    # 4. Feature engineering & signal layer
-    run_feature_engineering(inr_prices)
+    # 4. Feature engineering — market assets only (fixed_income has zero volatility)
+    market_tickers = master[master["asset_type"].isin(MARKET_ASSET_TYPES)]["ticker"].tolist()
+    market_prices = inr_prices[inr_prices["ticker"].isin(market_tickers)]
+    run_feature_engineering(market_prices)
 
-    # 5. Portfolio optimization engine
-    run_optimization(inr_prices, nav, contributions, master)
+    # 5-7: Optimization, backtesting, validation — held market assets + benchmark only
+    # Exclude tickers not in holdings (e.g. SPY is benchmark-only)
+    from analytics.holdings_loader import load_holdings as _load_h
+    held_tickers = set(_load_h()["ticker"].tolist())
+    held_market_prices = inr_prices[
+        inr_prices["ticker"].isin(held_tickers & set(market_tickers))
+    ]
+    # Include SPY as benchmark for backtesting/validation
+    bench_prices = inr_prices[inr_prices["ticker"] == "SPY"]
+    opt_prices = pd.concat([held_market_prices, bench_prices]).drop_duplicates()
 
-    # 6. Friction-aware backtesting
-    run_backtesting(inr_prices, master)
+    # 5. Portfolio optimization engine — held market assets only
+    run_optimization(held_market_prices, nav, contributions, master)
+
+    # 6. Friction-aware backtesting — includes benchmark
+    run_backtesting(opt_prices, master)
 
     # 7. Validation, robustness & research hardening
-    run_validation(inr_prices, master)
+    run_validation(opt_prices, master)
 
     logger.info("\n✓ Pipeline complete.")
 

@@ -56,6 +56,14 @@ def convert_prices_to_inr(
         if not asset_type.empty and asset_type.iloc[0] == "fx":
             continue
 
+        # Fixed-income assets are always INR and don't need FX conversion
+        if not asset_type.empty and asset_type.iloc[0] == "fixed_income":
+            currency = "INR"
+
+        # Metal proxy prices from Yahoo are in USD (commodity futures)
+        if not asset_type.empty and asset_type.iloc[0] == "metal":
+            currency = "USD"
+
         converted = _convert_single_asset(
             ticker, prices_df, currency, fx_series
         )
