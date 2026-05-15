@@ -1,11 +1,12 @@
 """
-Portfolio OS — Sprint 1 → 5 entry point.
+Portfolio OS — Sprint 1 → 6 entry point.
 
 Sprint 1: Downloads market data, validates, persists to parquet.
 Sprint 2: FX normalization, portfolio NAV, attribution, exposure.
 Sprint 3: Portfolio analytics, risk metrics, rolling diagnostics, benchmarks.
 Sprint 4: Feature engineering, signal generation, feature store.
 Sprint 5: Portfolio optimization, HRP, constraints, allocation engine.
+Sprint 6: Friction-aware backtesting, taxes, slippage, benchmarks.
 """
 
 from pathlib import Path
@@ -54,6 +55,11 @@ from optimization.allocator import build_signal_tilted_portfolio
 from optimization.turnover import calculate_turnover, calculate_weight_drift
 from optimization.rebalance import should_rebalance, calculate_rebalance_trades
 from optimization.reporting import generate_allocation_report
+
+from backtests.engine import run_backtest
+from backtests.benchmark import run_benchmark_suite, compare_backtest_results
+from backtests.attribution import calculate_performance_attribution
+from backtests.reporting import generate_backtest_report
 
 
 ASSET_MASTER = Path("configs/asset_master.csv")
@@ -503,11 +509,150 @@ def _print_sprint5_summary(
         logger.info(f"    {o}")
 
 
+# ── Sprint 6 ─────────────────────────────────────────────────────────────────
+
+
+def _build_wide_prices(inr_prices: pd.DataFrame) -> pd.DataFrame:
+    """Pivot inr_prices to wide-format daily prices (columns = tickers)."""
+    prices = inr_prices[~inr_prices["ticker"].str.contains("=X")].copy()
+    wide = prices.pivot_table(
+        index="date", columns="ticker", values="inr_price", aggfunc="first"
+    )
+    wide = wide.sort_index().ffill().dropna()
+    return wide
+
+
+def _build_country_map(master: pd.DataFrame) -> dict[str, str]:
+    """Build ticker → country map from asset master."""
+    return dict(zip(master["ticker"], master["country"]))
+
+
+def _hrp_signal_strategy(returns: pd.DataFrame, tickers: list[str]) -> dict[str, float]:
+    """HRP + signal tilt strategy for backtesting."""
+    from optimization.covariance import calculate_shrinkage_covariance
+    from optimization.hrp import allocate_hrp_weights
+    from optimization.constraints import apply_weight_caps
+
+    ret = returns[tickers].dropna()
+    if len(ret) < 60:
+        n = len(tickers)
+        return {t: 1.0 / n for t in tickers}
+
+    cov = calculate_shrinkage_covariance(ret, window=120)
+    hrp_df = allocate_hrp_weights(ret, cov=cov)
+    hrp_df = apply_weight_caps(hrp_df, max_weight=0.40, min_weight=0.05)
+    return dict(zip(hrp_df["ticker"], hrp_df["target_weight"]))
+
+
+def run_sprint6(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
+    """Execute Sprint 6: Friction-Aware Backtesting Engine."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 6 — FRICTION-AWARE BACKTESTING ENGINE")
+    logger.info("=" * 60)
+
+    wide_prices = _build_wide_prices(inr_prices)
+    country_map = _build_country_map(master)
+    initial_capital = 1_000_000.0
+
+    # ── Step 1: Run primary strategy backtest ─────────────────────────
+    logger.info("\n▸ Step 1 — Primary Strategy Backtest (HRP, quarterly)")
+    primary = run_backtest(
+        wide_prices=wide_prices,
+        strategy_fn=_hrp_signal_strategy,
+        initial_capital=initial_capital,
+        frequency="quarterly",
+        slippage_bps=10,
+        country_map=country_map,
+        warmup_days=120,
+    )
+
+    # ── Step 2: Run benchmark suite ─────────────────────────────────────
+    logger.info("\n▸ Step 2 — Benchmark Suite")
+    benchmarks = run_benchmark_suite(
+        wide_prices=wide_prices,
+        country_map=country_map,
+        initial_capital=initial_capital,
+        slippage_bps=10,
+        warmup_days=120,
+    )
+
+    # Add primary to results for comparison
+    all_results = {"hrp_optimized": primary, **benchmarks}
+
+    # ── Step 3: Compare strategies ──────────────────────────────────────
+    logger.info("\n▸ Step 3 — Strategy Comparison")
+    comparison = compare_backtest_results(all_results)
+
+    # ── Step 4: Attribution ─────────────────────────────────────────────
+    logger.info("\n▸ Step 4 — Performance Attribution")
+    attribution = calculate_performance_attribution(
+        nav_series=primary["nav_series"],
+        ledger_df=primary["ledger"].to_dataframe(),
+        initial_capital=initial_capital,
+    )
+
+    # ── Step 5: Save artifacts ──────────────────────────────────────────
+    logger.info("\n▸ Step 5 — Save & Report")
+    primary["ledger"].save()
+    _save(primary["nav_series"], "backtest_nav.parquet")
+
+    generate_backtest_report(
+        comparison=comparison,
+        attribution=attribution,
+        ledger_summary=primary["ledger"].summary(),
+    )
+
+    _print_sprint6_summary(comparison, attribution, primary)
+
+
+def _print_sprint6_summary(
+    comparison: pd.DataFrame,
+    attribution: dict,
+    primary: dict,
+) -> None:
+    """Final Sprint 6 summary."""
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SPRINT 6 — SUMMARY")
+    logger.info("=" * 60)
+
+    if not comparison.empty and "hrp_optimized" in comparison.index:
+        row = comparison.loc["hrp_optimized"]
+        logger.info(f"  HRP Optimized:")
+        logger.info(f"    Net CAGR:       {row['cagr']:+.2%}")
+        logger.info(f"    Sharpe:         {row['sharpe']:.3f}")
+        logger.info(f"    Sortino:        {row['sortino']:.3f}")
+        logger.info(f"    Max Drawdown:   {row['max_drawdown']:+.2%}")
+        logger.info(f"    Total friction: ₹{row['total_friction']:,.0f}")
+
+    if attribution:
+        logger.info(f"\n  Attribution:")
+        logger.info(f"    Gross CAGR:     {attribution['gross_cagr']:+.2%}")
+        logger.info(f"    Net CAGR:       {attribution['net_cagr']:+.2%}")
+        logger.info(f"    Friction drag:  {attribution['friction_cagr_drag']:.2%}")
+
+    ledger_sum = primary["ledger"].summary()
+    logger.info(f"\n  Execution:")
+    logger.info(f"    Total trades:   {ledger_sum.get('n_trades', 0)}")
+    logger.info(f"    Rebalances:     {len(primary['rebalance_log'])}")
+
+    outputs = [
+        "data/processed/backtest_nav.parquet",
+        "data/processed/trade_ledger.parquet",
+        "reports/backtest_comparison.csv",
+        "reports/backtest_attribution.csv",
+    ]
+    logger.info(f"\n  Outputs: {len(outputs)} files")
+    for o in outputs:
+        logger.info(f"    {o}")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 5)")
+    logger.info("Portfolio OS — Full Pipeline (Sprint 1 → 6)")
     logger.info("-" * 50)
 
     master = load_asset_master()
@@ -528,6 +673,9 @@ def main() -> None:
 
     # Sprint 5: Portfolio optimization engine
     run_sprint5(inr_prices, nav, contributions, master)
+
+    # Sprint 6: Friction-aware backtesting
+    run_sprint6(inr_prices, master)
 
     logger.info("\n✓ Pipeline complete.")
 
