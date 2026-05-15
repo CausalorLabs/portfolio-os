@@ -137,7 +137,7 @@ portfolio-os/
 │   ├── app.py              #   Dashboard entry point
 │   ├── layout.py           #   Theme & styling
 │   ├── state.py            #   Session state management
-│   ├── pages/              #   6 dashboard pages
+│   ├── views/              #   6 dashboard views
 │   │   ├── overview.py     #     KPI cards, NAV curve, allocation
 │   │   ├── analytics.py    #     Risk metrics, rolling charts, drawdowns
 │   │   ├── optimization.py #     Weight targets, HRP tree, constraints

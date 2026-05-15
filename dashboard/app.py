@@ -14,7 +14,7 @@ import streamlit as st
 from dashboard.state import init_state
 from dashboard.layout import apply_theme
 from dashboard.components.filters import render_filters
-from dashboard.pages import overview, analytics, optimization, backtests, exposure, recommendations
+from dashboard.views import overview, analytics, optimization, backtests, exposure, recommendations
 
 # ── Page config ──────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ with st.sidebar:
     render_filters()
 
     st.divider()
-    st.caption("Sprint 1→7 • POC v0.7")
+    st.caption("Sprint 1→8 • POC v0.8")
 
 # ── Render selected page ─────────────────────────────────────────────────────
 
