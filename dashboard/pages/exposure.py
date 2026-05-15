@@ -27,8 +27,14 @@ def render() -> None:
         return
 
     # Merge holdings with master for country/currency/type
+    # Holdings already has currency and asset_type; only pull new cols from master
+    master_cols = ["ticker", "asset_name", "country"]
+    if "currency" not in holdings.columns:
+        master_cols.append("currency")
+    if "asset_type" not in holdings.columns:
+        master_cols.append("asset_type")
     merged = holdings.merge(
-        master[["ticker", "asset_name", "country", "currency", "asset_type"]],
+        master[master_cols],
         on="ticker", how="left",
     )
 

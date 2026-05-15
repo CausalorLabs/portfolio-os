@@ -128,24 +128,21 @@ def equal_weight_strategy():
 
 @pytest.fixture()
 def feature_store(inr_prices) -> pd.DataFrame:
-    """Minimal feature store for testing signal functions."""
+    """Minimal feature store in long format (date, ticker, feature, value)."""
     dates = inr_prices["date"].unique()[:252]
     tickers = ["AAPL", "SPY", "RELIANCE.NS", "INFY.NS"]
+    features = [
+        "factor_momentum", "factor_trend", "factor_low_vol",
+        "momentum_20d", "rolling_20d_vol", "trend_sma_ratio_50",
+    ]
     rows = []
     for d in dates:
         for t in tickers:
-            rows.append({
-                "date": d,
-                "ticker": t,
-                "momentum_20d": np.random.normal(0, 0.05),
-                "momentum_60d": np.random.normal(0, 0.08),
-                "rolling_20d_vol": abs(np.random.normal(0.015, 0.005)),
-                "rolling_60d_vol": abs(np.random.normal(0.018, 0.005)),
-                "trend_sma_ratio_50": 1 + np.random.normal(0, 0.03),
-                "trend_sma_ratio_200": 1 + np.random.normal(0, 0.05),
-                "mean_reversion_zscore_20d": np.random.normal(0, 1),
-                "return_1d": np.random.normal(0.0003, 0.015),
-                "return_5d": np.random.normal(0.0015, 0.03),
-                "return_20d": np.random.normal(0.006, 0.06),
-            })
+            for f in features:
+                rows.append({
+                    "date": d,
+                    "ticker": t,
+                    "feature": f,
+                    "value": np.random.normal(0, 1),
+                })
     return pd.DataFrame(rows)
