@@ -6,6 +6,8 @@ data/raw/*
 data/processed/*
 data/cache/*
 data/exports/*
+reports/*.html
+reports/*.csv
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/cache/.gitkeep

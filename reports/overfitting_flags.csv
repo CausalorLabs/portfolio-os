@@ -1,3 +1,0 @@
-flag,severity,detail
-REGIME_COLLAPSE,high,Negative Sharpe in major regime(s): bull
-REGIME_DEPENDENT,medium,Strategy performance is highly regime-dependent
