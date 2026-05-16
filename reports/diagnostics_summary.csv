@@ -1,10 +1,10 @@
 metric,grade,detail
 strategy_stability,N/A,"{'score': 'N/A', 'detail': 'No walk-forward data'}"
 turnover_efficiency,N/A,{'score': 'N/A'}
-parameter_robustness,FRAGILE,"{'grade': 'FRAGILE', 'sharpe_cv': inf, 'positive_pct': np.float64(0.0), 'n_combos': 5}"
-regime_consistency,N/A,"{'score': 'N/A', 'detail': 'No regime data'}"
-friction_sensitivity,RESILIENT,"{'grade': 'RESILIENT', 'avg_cagr_impact': np.float64(0.0), 'worst_stressed_dd': np.float64(0.0)}"
-signal_quality,MODERATE,"{'grade': 'MODERATE', 'peak_ic': np.float64(0.2681), 'peak_horizon': 20, 'positive_horizons': 0}"
-tail_risk,MODERATE,"{'grade': 'MODERATE', 'prob_loss': np.float64(0.214), 'cvar_5pct': np.float64(-0.0302), 'worst_max_dd': np.float64(-0.0737)}"
+parameter_robustness,ROBUST,"{'grade': 'ROBUST', 'sharpe_cv': np.float64(0.263), 'positive_pct': np.float64(1.0), 'n_combos': 5}"
+regime_consistency,INCONSISTENT,"{'grade': 'INCONSISTENT', 'positive_regimes': '2/4', 'worst_regime': 'bear', 'worst_sharpe': np.float64(-1.231)}"
+friction_sensitivity,FRAGILE,"{'grade': 'FRAGILE', 'avg_cagr_impact': np.float64(-0.1801), 'worst_stressed_dd': np.float64(-0.5793)}"
+signal_quality,MODERATE,"{'grade': 'MODERATE', 'peak_ic': np.float64(0.0483), 'peak_horizon': 60, 'positive_horizons': 3}"
+tail_risk,ACCEPTABLE,"{'grade': 'ACCEPTABLE', 'prob_loss': np.float64(0.026), 'cvar_5pct': np.float64(-0.0129), 'worst_max_dd': np.float64(-0.2193)}"
 overfitting_status,POSSIBLE_OVERFIT,
-n_overfitting_flags,1,
+n_overfitting_flags,2,
