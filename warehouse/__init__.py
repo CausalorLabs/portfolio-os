@@ -61,6 +61,17 @@ _TABLE_REGISTRY: dict[str, str] = {
     "model_health": "model_health.parquet",
     "audit_trail": "audit_trail.parquet",
     "decision_timeline": "decision_timeline.parquet",
+    # Orchestration tables (Sprint 7)
+    "workflow_runs": "workflow_runs.parquet",
+    "orchestration_events": "orchestration_events.parquet",
+    "sla_records": "sla_records.parquet",
+    "system_state": "system_state.parquet",
+    "state_history": "state_history.parquet",
+    # Deployment tables (Sprint 8)
+    "trust_scores": "trust_scores.parquet",
+    "validation_results": "validation_results.parquet",
+    "walkforward_comparison": "walkforward_comparison.parquet",
+    "stabilization_report": "stabilization_report.parquet",
 }
 
 

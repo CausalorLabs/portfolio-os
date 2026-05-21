@@ -1,0 +1,130 @@
+# Sprint 7 — Automation, Orchestration & Continuous Operations
+
+orchestration:
+  # Daily lifecycle pipeline
+  pipeline_name: "portfolio_daily"
+  stages:
+    - ingestion
+    - features
+    - regime_detection
+    - ml_inference
+    - risk_calculation
+    - optimization
+    - utility_evaluation
+    - execution_simulation
+    - attribution_update
+    - alert_generation
+    - monitoring
+  max_parallel_stages: 1  # Sequential by default
+  timeout_minutes: 30
+
+events:
+  # Event bus
+  retention_hours: 168  # 7 days
+  max_events: 10000
+  event_types:
+    - market_data_updated
+    - features_computed
+    - regime_changed
+    - confidence_collapsed
+    - drift_breach
+    - risk_recalculated
+    - weights_optimized
+    - execution_complete
+    - pipeline_failed
+    - alert_fired
+    - model_retrained
+    - config_changed
+
+dependencies:
+  # Dependency graph
+  ml_inference:
+    requires: [ingestion, features, regime_detection]
+  risk_calculation:
+    requires: [ml_inference, regime_detection]
+  optimization:
+    requires: [risk_calculation, ml_inference]
+  execution_simulation:
+    requires: [optimization]
+  attribution_update:
+    requires: [execution_simulation]
+  alert_generation:
+    requires: [attribution_update, monitoring]
+
+retries:
+  # Retry policies
+  default_max_retries: 3
+  default_backoff_base: 2.0  # exponential backoff base (seconds)
+  default_backoff_max: 300   # max backoff (5 min)
+  stage_overrides:
+    ingestion:
+      max_retries: 5
+      backoff_base: 5.0
+      fallback: "use_cached"
+    ml_inference:
+      max_retries: 2
+      fallback: "use_previous"
+    risk_calculation:
+      max_retries: 2
+      fallback: "use_previous"
+
+scheduling:
+  # Operational cadence
+  daily:
+    time: "18:30"  # After Indian market close (IST)
+    timezone: "Asia/Kolkata"
+    tasks:
+      - data_refresh
+      - feature_recomputation
+      - portfolio_evaluation
+  weekly:
+    day: "sunday"
+    tasks:
+      - stress_testing
+      - factor_recalibration
+  monthly:
+    day_of_month: 1
+    tasks:
+      - strategy_evaluation
+      - turnover_analysis
+      - attribution_report
+      - model_retraining_check
+
+mlops:
+  # Continuous ML operations
+  retraining:
+    trigger_conditions:
+      ic_threshold: 0.02         # Retrain if IC drops below
+      confidence_floor: 0.3      # Retrain if mean confidence drops below
+      feature_drift_zscore: 3.0  # Retrain if features drift
+      max_days_since_training: 90
+    shadow_deployment:
+      enabled: true
+      min_shadow_days: 5
+      min_improvement_ic: 0.005
+  model_registry:
+    tracking_uri: "mlruns"
+    experiment_name: "portfolio_alpha"
+
+state:
+  # Global system state
+  snapshot_on_change: true
+  state_file: "data/processed/system_state.json"
+  history_file: "data/processed/state_history.parquet"
+
+sla:
+  # Service level agreements
+  ingestion_max_minutes: 10
+  features_max_minutes: 5
+  ml_inference_max_minutes: 3
+  risk_max_minutes: 5
+  total_pipeline_max_minutes: 30
+  staleness_hours: 24
+  target_uptime_pct: 99.0
+
+governance:
+  # Operational governance
+  config_snapshots: true
+  snapshot_dir: "data/processed/config_snapshots"
+  workflow_versioning: true
+  max_snapshots: 100

@@ -1,0 +1,111 @@
+# Sprint 8 — MVP Hardening, Validation & Personal Deployment
+
+validation:
+  # End-to-end validation
+  checks:
+    - schema_consistency
+    - stale_data
+    - missing_features
+    - timestamp_alignment
+    - currency_consistency
+    - impossible_allocations
+    - negative_cash
+    - leverage_violations
+    - risk_budget_breach
+  max_allocation_sum: 1.05   # Allow 5% tolerance
+  min_allocation_sum: 0.90
+  max_leverage: 1.0
+  max_single_position: 0.30
+
+failure_simulation:
+  # Chaos testing
+  scenarios:
+    - missing_prices
+    - stale_fx
+    - nan_predictions
+    - feature_explosion
+    - confidence_collapse
+    - api_timeout
+    - partial_pipeline
+  enabled: false  # Enable manually for testing
+
+trust:
+  # Portfolio trust calibration
+  weights:
+    model_health: 0.25
+    data_quality: 0.25
+    regime_stability: 0.20
+    execution_reliability: 0.15
+    operational_health: 0.15
+  thresholds:
+    high_trust: 0.80    # Full automation authority
+    medium_trust: 0.50  # Assisted mode
+    low_trust: 0.30     # Advisory only — no auto trades
+  reduce_on:
+    feature_drift: 0.10
+    unstable_covariance: 0.15
+    regime_flapping: 0.10
+    low_ml_confidence: 0.15
+    operational_failures: 0.10
+
+walkforward:
+  # Long-horizon evaluation
+  min_years: 3
+  benchmarks:
+    - buy_and_hold
+    - equal_weight
+    - risk_parity
+  metrics:
+    - cagr
+    - sharpe
+    - max_drawdown
+    - calmar
+    - turnover
+    - tax_efficiency
+    - crisis_alpha
+
+shadow:
+  # Shadow production
+  enabled: true
+  mode: "assisted"  # advisory | assisted | autonomous
+  capital: 10000000  # ₹1Cr
+  daily_report: true
+  compare_vs_actual: true
+
+override:
+  # Human override layer
+  approval_modes:
+    advisory:
+      description: "Recommendations only — no execution"
+      auto_execute: false
+      show_reasoning: true
+    assisted:
+      description: "Human approval required for execution"
+      auto_execute: false
+      show_reasoning: true
+      require_approval: true
+    autonomous:
+      description: "Fully automated execution"
+      auto_execute: true
+      show_reasoning: true
+      min_trust_score: 0.80
+  default_mode: "assisted"
+
+hardening:
+  # Operational hardening
+  backup:
+    enabled: true
+    interval_hours: 24
+    max_backups: 30
+    backup_dir: "data/backups"
+  reproducibility:
+    freeze_requirements: true
+    snapshot_configs: true
+    track_model_versions: true
+
+security:
+  # Security layer
+  api_auth: false       # Enable when deploying externally
+  rate_limit_rpm: 60
+  cors_origins: ["http://localhost:8501"]
+  secrets_from_env: true

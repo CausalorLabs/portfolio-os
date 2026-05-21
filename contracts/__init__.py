@@ -485,3 +485,113 @@ class EventLineage(BaseModel):
     inputs: list[str] = Field(default_factory=list)
     outputs: list[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
+
+
+# ── Sprint 7 — Orchestration & Automation ────────────────────────────────────
+
+
+class PipelineStage(str, Enum):
+    INGESTION = "ingestion"
+    FEATURES = "features"
+    REGIME = "regime_detection"
+    ML = "ml_inference"
+    RISK = "risk_calculation"
+    OPTIMIZATION = "optimization"
+    UTILITY = "utility_evaluation"
+    EXECUTION = "execution_simulation"
+    ATTRIBUTION = "attribution_update"
+    ALERTS = "alert_generation"
+    MONITORING = "monitoring"
+
+
+class StageStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    RETRYING = "retrying"
+
+
+class ApprovalMode(str, Enum):
+    ADVISORY = "advisory"
+    ASSISTED = "assisted"
+    AUTONOMOUS = "autonomous"
+
+
+class WorkflowRun(BaseModel):
+    """Record of a workflow execution."""
+    run_id: str
+    pipeline: str
+    started_at: datetime
+    completed_at: datetime | None = None
+    status: str  # running | completed | failed
+    stages_completed: int = Field(ge=0, default=0)
+    stages_total: int = Field(ge=0)
+    duration_seconds: float = Field(ge=0, default=0)
+    error: str | None = None
+
+
+class EventRecord(BaseModel):
+    """Event bus record."""
+    event_id: str
+    timestamp: datetime
+    event_type: str
+    source: str
+    status: str = "pending"  # pending | processed | failed
+    payload: dict = Field(default_factory=dict)
+
+
+class SystemState(BaseModel):
+    """Global system state snapshot."""
+    timestamp: datetime
+    regime: str
+    portfolio_nav: float
+    n_positions: int = Field(ge=0)
+    model_version: str = ""
+    pipeline_status: str  # healthy | degraded | unhealthy
+    trust_score: float = Field(ge=0, le=1, default=0.5)
+    approval_mode: str = "assisted"
+
+
+class SLARecord(BaseModel):
+    """SLA compliance record."""
+    timestamp: datetime
+    component: str
+    target_minutes: float = Field(gt=0)
+    actual_minutes: float = Field(ge=0)
+    met: bool
+    uptime_pct: float = Field(ge=0, le=100)
+
+
+# ── Sprint 8 — MVP Hardening & Deployment ────────────────────────────────────
+
+
+class TrustScore(BaseModel):
+    """Portfolio trust calibration."""
+    timestamp: datetime
+    model_health: float = Field(ge=0, le=1)
+    data_quality: float = Field(ge=0, le=1)
+    regime_stability: float = Field(ge=0, le=1)
+    execution_reliability: float = Field(ge=0, le=1)
+    operational_health: float = Field(ge=0, le=1)
+    overall_trust: float = Field(ge=0, le=1)
+    recommended_mode: str  # advisory | assisted | autonomous
+
+
+class ValidationResult(BaseModel):
+    """E2E validation result."""
+    timestamp: datetime
+    check_name: str
+    passed: bool
+    details: str
+    severity: str = "INFO"  # INFO | WARNING | CRITICAL
+
+
+class FailureSimResult(BaseModel):
+    """Failure simulation outcome."""
+    scenario: str
+    survived: bool
+    degradation_mode: str
+    recovery_time_seconds: float = Field(ge=0)
+    details: str

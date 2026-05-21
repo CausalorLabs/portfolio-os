@@ -14,7 +14,7 @@ import streamlit as st
 from dashboard.state import init_state
 from dashboard.layout import apply_theme
 from dashboard.components.filters import render_filters
-from dashboard.views import overview, analytics, optimization, backtests, exposure, recommendations, structural_health, regime_intelligence, risk_intelligence, execution_intelligence, explainability
+from dashboard.views import overview, analytics, optimization, backtests, exposure, recommendations, structural_health, regime_intelligence, risk_intelligence, execution_intelligence, explainability, operations, command_center
 
 # ── Page config ──────────────────────────────────────────────────────────────
 
@@ -44,6 +44,8 @@ PAGES = {
     "🛡️ Risk Intelligence": risk_intelligence,
     "⚡ Execution Intelligence": execution_intelligence,
     "🔍 Explainability": explainability,
+    "🏭 Operations": operations,
+    "🎯 Command Center": command_center,
 }
 
 with st.sidebar:
