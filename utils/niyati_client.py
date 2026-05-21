@@ -8,25 +8,33 @@ Version:   0.3.17
 import os
 
 import requests
+from dotenv import load_dotenv
 from loguru import logger
 
+load_dotenv()
+
 BASE_URL = "https://api.causalorlabs.com"
-NIYATI_KEY = os.getenv("NIYATI_API_KEY", "niyati_int_0149_0149_0149")
 NIYATI_VERSION = "0.3.17"
 TIMEOUT = 30
 
-_HEADERS = {
-    "Content-Type": "application/json",
-    "X-Niyati-Version": NIYATI_VERSION,
-    "X-Niyati-Key": NIYATI_KEY,
-}
+
+def _get_headers() -> dict:
+    """Build request headers lazily so the env var is always fresh."""
+    key = os.getenv("NIYATI_API_KEY", "")
+    if not key:
+        logger.warning("NIYATI_API_KEY is not set — API calls will fail")
+    return {
+        "Content-Type": "application/json",
+        "X-Niyati-Version": NIYATI_VERSION,
+        "X-Niyati-Key": key,
+    }
 
 
 def _post(path: str, payload: dict) -> dict | None:
     """POST to the Niyati API. Returns parsed JSON or None on error."""
     url = f"{BASE_URL}{path}"
     try:
-        resp = requests.post(url, json=payload, headers=_HEADERS, timeout=TIMEOUT)
+        resp = requests.post(url, json=payload, headers=_get_headers(), timeout=TIMEOUT)
         if not resp.ok:
             logger.error(
                 f"Niyati API error {resp.status_code} at {path}: {resp.text[:400]}"
