@@ -49,6 +49,9 @@ _TABLE_REGISTRY: dict[str, str] = {
     "correlation_rolling": "correlation_rolling.parquet",
     "crisis_clustering": "crisis_clustering.parquet",
     "risk_budget": "risk_budget.parquet",
+    # Execution engine tables (Sprint 5)
+    "paper_portfolio": "paper_portfolio.parquet",
+    "execution_journal": "execution_journal.parquet",
 }
 
 

@@ -84,6 +84,10 @@ risk_engine:
   enabled: true
   config_file: configs/risk_engine.yaml
 
+execution_engine:
+  enabled: true
+  config_file: configs/execution_engine.yaml
+
 backtesting:
   initial_capital: 1000000.0
   frequency: monthly  # monthly | quarterly

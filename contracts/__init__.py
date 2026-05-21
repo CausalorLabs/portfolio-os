@@ -303,3 +303,70 @@ class ExecutionContext(BaseModel):
         if not v or len(v) < 8:
             raise ValueError("execution_id must be at least 8 characters")
         return v
+
+
+# ── Execution Engine (Sprint 5) ─────────────────────────────────────────────
+
+
+class ExecutionState(str, Enum):
+    IDLE = "idle"
+    EVALUATING = "evaluating"
+    PENDING = "pending_approval"
+    EXECUTING = "executing"
+    SETTLING = "settling"
+    SETTLED = "settled"
+
+
+class UtilityDecision(BaseModel):
+    """Result of a utility-based rebalance evaluation."""
+    date: date
+    should_trade: bool
+    expected_utility_gain: float
+    estimated_friction: float
+    net_utility: float
+    confidence: float = Field(ge=0, le=1)
+    trigger: str
+    rationale: str
+
+
+class ExecutionPlanRecord(BaseModel):
+    """A single trade in an execution plan."""
+    ticker: str
+    action: str  # BUY | SELL
+    quantity: float = Field(ge=0)
+    price: float = Field(gt=0)
+    notional: float = Field(ge=0)
+    estimated_slippage: float = Field(ge=0)
+    estimated_cost: float = Field(ge=0)
+    liquidity_score: float = Field(ge=0, le=1)
+    priority: int = Field(ge=1)
+    execution_reason: str
+
+
+class PaperPortfolioState(BaseModel):
+    """Daily paper portfolio snapshot."""
+    date: date
+    cash: float
+    market_value: float
+    nav: float
+    n_positions: int = Field(ge=0)
+    turnover: float = Field(ge=0)
+    realized_pnl: float
+    unrealized_pnl: float
+    total_costs: float = Field(ge=0)
+    total_taxes: float = Field(ge=0)
+    tax_liability: float = Field(ge=0)
+
+
+class ExecutionJournalEntry(BaseModel):
+    """Single entry in the execution audit journal."""
+    timestamp: datetime
+    decision_id: str
+    action: str  # trade | no_trade | harvest
+    rationale: str
+    expected_utility: float
+    cost_estimate: float
+    confidence: float = Field(ge=0, le=1)
+    regime: str
+    trigger: str
+    n_trades: int = Field(ge=0)

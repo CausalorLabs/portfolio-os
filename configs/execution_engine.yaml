@@ -1,0 +1,85 @@
+# ── Sprint 5 — Execution Engine Configuration ───────────────────────────────
+# Professional systems optimize expected utility after friction,
+# not just target allocation.
+
+utility_rebalancing:
+  min_utility_gain: 0.002          # 20bps minimum expected gain to justify trade
+  alpha_weight: 0.40               # how much alpha improvement matters
+  risk_weight: 0.35                # how much risk reduction matters
+  diversification_weight: 0.15     # diversification improvement
+  regime_weight: 0.10              # regime shift urgency
+  confidence_floor: 0.30           # don't trade if confidence < 30%
+
+drift:
+  base_threshold: 0.05             # 5% weight drift triggers rebalance
+  regime_thresholds:
+    risk_on: 0.05
+    risk_off: 0.04
+    panic: 0.08                    # wider threshold in panic (avoid churn)
+    high_vol: 0.06
+  risk_contribution_threshold: 0.10  # 10% risk drift triggers
+  confidence_drop_threshold: 0.20    # 20% confidence drop triggers
+
+costs:
+  brokerage_pct: 0.03              # 3bps
+  stt_pct: 0.10                    # 10bps STT (India sell-side)
+  fx_spread_pct: 0.50              # 50bps FX conversion
+  slippage_base_bps: 10            # base slippage in bps
+  stamp_duty_pct: 0.015            # 1.5bps stamp duty
+  gst_on_brokerage_pct: 18.0       # 18% GST on brokerage
+
+taxes:
+  india:
+    stcg_equity_pct: 20.0          # short-term capital gains equity
+    ltcg_equity_pct: 12.5          # long-term capital gains equity (>1yr)
+    ltcg_exemption_inr: 125000     # ₹1.25L annual LTCG exemption
+    holding_period_months: 12      # equity LTCG qualifying period
+    stcg_debt_pct: 30.0            # debt STCG at slab rate
+    ltcg_debt_pct: 20.0            # debt LTCG with indexation
+    cess_pct: 4.0                  # health & education cess
+  us:
+    stcg_pct: 15.0
+    ltcg_pct: 15.0
+    holding_period_months: 12
+
+  tax_loss_harvesting:
+    enabled: true
+    min_loss_to_harvest: 5000      # ₹5K minimum
+    wash_sale_days: 30             # no repurchase within 30 days
+    max_annual_harvest: 100000     # ₹1L annual cap
+
+slippage:
+  model: volatility_adjusted       # simple | volatility_adjusted
+  base_bps: 10
+  vol_multiplier: 2.0              # slippage = base × (1 + vol_mult × vol/avg_vol)
+  large_order_threshold_pct: 5.0   # >5% of ADV gets extra impact
+  market_impact_bps: 5             # additional bps for large orders
+
+turnover:
+  monthly_budget: 0.20             # 20% one-way max monthly turnover
+  annual_budget: 1.50              # 150% annual turnover cap
+  min_trade_notional: 500          # ₹500 minimum trade size
+  trade_penalty_bps: 5             # 5bps penalty per trade for utility calc
+  signal_stability_window: 5       # days of stable signal before trading
+
+paper_trading:
+  initial_capital: 10000000        # ₹1Cr paper portfolio
+  rebalance_check_frequency: daily # daily | weekly
+  auto_execute: false              # require manual approval
+
+state_machine:
+  states:
+    - idle
+    - evaluating
+    - pending_approval
+    - executing
+    - settling
+    - settled
+  default_state: idle
+  auto_settle: true                # auto-transition executing → settled
+  settlement_days: 2               # T+2 settlement
+
+audit:
+  log_all_decisions: true          # log even "no trade" decisions
+  retention_days: 365              # keep logs for 1 year
+  include_rationale: true
