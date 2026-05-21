@@ -1,5 +1,6 @@
 pandas
 numpy
+requests>=2.31.0
 polars
 yfinance
 mftool

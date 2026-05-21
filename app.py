@@ -513,8 +513,37 @@ def run_optimization(
 
     # ── Step 7: Rebalance decision ───────────────────────────────────────
     logger.info("\n▸ Step 7 — Rebalance Decision")
+
+    # Niyati fragility gate: tighten drift threshold when portfolio is fragile
+    drift_threshold = 0.05
+    try:
+        from validation.niyati_stress import run_fragility_check
+
+        metrics_now = _load_niyati_metrics()
+        frag = run_fragility_check(
+            current_sharpe=metrics_now["sharpe_ratio"],
+            current_drawdown=metrics_now["max_drawdown"],
+        )
+        if frag is not None:
+            collapse_risk = frag.get("collapse_risk", 0.0)
+            thickness = frag.get("thickness", 1.0)
+            if collapse_risk > 0.15 or thickness < 0.10:
+                # Fragile: trigger rebalance sooner to keep portfolio centered
+                drift_threshold = 0.03
+                logger.info(
+                    f"  Niyati fragility gate: collapse_risk={collapse_risk:.4f}, "
+                    f"thickness={thickness:.4f} → tightening drift threshold to {drift_threshold}"
+                )
+            else:
+                logger.info(
+                    f"  Niyati fragility gate: collapse_risk={collapse_risk:.4f}, "
+                    f"thickness={thickness:.4f} → normal threshold {drift_threshold}"
+                )
+    except Exception as exc:
+        logger.warning(f"  Niyati fragility gate skipped (non-fatal): {exc}")
+
     rebalance = should_rebalance(
-        latest_contrib, tilted, drift_threshold=0.05, method="threshold"
+        latest_contrib, tilted, drift_threshold=drift_threshold, method="threshold"
     )
 
     portfolio_value = nav.iloc[-1]["portfolio_nav"]
@@ -921,6 +950,26 @@ def run_validation(inr_prices: pd.DataFrame, master: pd.DataFrame) -> None:
     logger.info(f"  Research Score:        {research_score.get('total_score', 'N/A')}/100 ({research_score.get('grade', 'N/A')})")
 
 
+# ── Niyati helpers ────────────────────────────────────────────────────────────
+
+
+def _load_niyati_metrics() -> dict:
+    """Load current Sharpe and max drawdown from reports/portfolio_metrics.csv."""
+    path = Path("reports/portfolio_metrics.csv")
+    defaults = {"sharpe_ratio": 1.0, "max_drawdown": -0.15}
+    if not path.exists():
+        return defaults
+    try:
+        df = pd.read_csv(path)
+        row = df.iloc[0].to_dict() if not df.empty else {}
+        return {
+            "sharpe_ratio": float(row.get("sharpe_ratio", defaults["sharpe_ratio"])),
+            "max_drawdown": float(row.get("max_drawdown", defaults["max_drawdown"])),
+        }
+    except Exception:
+        return defaults
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 
@@ -970,6 +1019,112 @@ def main() -> None:
 
     # 7. Validation, robustness & research hardening
     run_validation(opt_prices, master)
+
+    # ── Step 9: Niyati structural analysis ───────────────────────────────────
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("NIYATI STRUCTURAL ANALYSIS")
+    logger.info("=" * 60)
+
+    try:
+        import json
+
+        from validation.niyati_runway import run_runway_analysis, summarize_runway
+        from validation.niyati_stress import (
+            run_adversarial_allocation,
+            run_adversarial_survival,
+            run_competition_stress,
+        )
+
+        reports_dir = Path("reports")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        # 9a. Runway analysis
+        logger.info("\n▸ Step 9a — Runway Analysis (structural feasibility)")
+        runway_result = run_runway_analysis()
+        runway_summary = summarize_runway(runway_result)
+
+        if runway_result is not None:
+            (reports_dir / "niyati_runway.json").write_text(
+                json.dumps(runway_result, indent=2, default=str)
+            )
+            logger.info(f"  Verdict:            {runway_summary['verdict']}")
+            logger.info(f"  Point of no return: {runway_summary['point_of_no_return']}")
+            logger.info(f"  Survival posture:   {runway_summary['survival_posture']}")
+            logger.info(f"  Headline:           {runway_summary['headline']}")
+        else:
+            logger.warning("  Runway analysis returned no result — API may be down")
+
+        # 9b. Adversarial allocation
+        logger.info("\n▸ Step 9b — Adversarial Allocation (which class collapses first)")
+        stress_result = run_adversarial_allocation()
+
+        if stress_result is not None:
+            (reports_dir / "niyati_stress.json").write_text(
+                json.dumps(stress_result, indent=2, default=str)
+            )
+            first_collapse = stress_result.get(
+                "first_collapse", stress_result.get("first_target", "unknown")
+            )
+            n_collapsed = stress_result.get(
+                "collapse_count", stress_result.get("n_collapsed", "?")
+            )
+            logger.info(f"  First collapse:     {first_collapse}")
+            logger.info(f"  Systems collapsed:  {n_collapsed}")
+        else:
+            logger.warning("  Adversarial allocation returned no result")
+
+        # 9c. Competition stress (moderate shock)
+        logger.info("\n▸ Step 9c — Competition Stress (moderate market shock)")
+        metrics = _load_niyati_metrics()
+        competition_result = run_competition_stress(
+            current_sharpe=metrics["sharpe_ratio"],
+            current_drawdown=metrics["max_drawdown"],
+            shock_level="moderate",
+        )
+
+        if competition_result is not None:
+            (reports_dir / "niyati_competition.json").write_text(
+                json.dumps(competition_result, indent=2, default=str)
+            )
+            kappa_u = competition_result.get(
+                "kappa_unperturbed", competition_result.get("kappa_base", "N/A")
+            )
+            kappa_c = competition_result.get(
+                "kappa_competitive_bound", competition_result.get("kappa_bound", "N/A")
+            )
+            logger.info(f"  kappa_unperturbed:  {kappa_u}")
+            logger.info(f"  kappa_competitive:  {kappa_c}")
+        else:
+            logger.warning("  Competition stress returned no result")
+
+        # 9d. Adversarial survival verdict
+        logger.info("\n▸ Step 9d — Adversarial Survival (crash budget verdict)")
+        metrics_adv = _load_niyati_metrics()
+        survival_result = run_adversarial_survival(
+            current_sharpe=metrics_adv["sharpe_ratio"],
+            current_drawdown=metrics_adv["max_drawdown"],
+            crash_budget=0.006,  # 3 adversarial shocks at 20bps equivalent
+        )
+
+        if survival_result is not None:
+            (reports_dir / "niyati_survival.json").write_text(
+                json.dumps(survival_result, indent=2, default=str)
+            )
+            sv = survival_result.get("survival_verdict", "unknown")
+            sm = survival_result.get("survival_margin")
+            pi_r = survival_result.get("pi_regime", "unknown")
+            sm_str = f"{sm:+.4f}" if sm is not None else "N/A"
+            logger.info(f"  Survival verdict:   {sv.upper()}")
+            logger.info(f"  Survival margin:    {sm_str}")
+            logger.info(f"  Pi regime:          {pi_r}")
+        else:
+            logger.warning("  Adversarial survival returned no result")
+
+        logger.info("\n  Niyati outputs saved to reports/niyati_*.json")
+
+    except Exception as exc:
+        logger.warning(f"Niyati structural analysis skipped (non-fatal): {exc}")
 
     logger.info("\n✓ Pipeline complete.")
 

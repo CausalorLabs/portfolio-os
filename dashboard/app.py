@@ -14,7 +14,7 @@ import streamlit as st
 from dashboard.state import init_state
 from dashboard.layout import apply_theme
 from dashboard.components.filters import render_filters
-from dashboard.views import overview, analytics, optimization, backtests, exposure, recommendations
+from dashboard.views import overview, analytics, optimization, backtests, exposure, recommendations, structural_health
 
 # ── Page config ──────────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ PAGES = {
     "🧪 Backtests": backtests,
     "🌍 Exposure": exposure,
     "💡 Recommendations": recommendations,
+    "🏗️ Structural Health": structural_health,
 }
 
 with st.sidebar:
