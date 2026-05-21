@@ -1,14 +1,14 @@
-# Portfolio OS — Personal Portfolio Research Engine
+# Portfolio OS — Personal Portfolio Operating System
 
-A modular quantitative portfolio research system that ingests multi-currency market data, normalizes it to a base currency, engineers alpha signals, optimizes allocations, backtests with realistic friction (taxes, slippage, transaction costs), validates out-of-sample, and surfaces everything through an interactive dashboard.
+A production-grade quantitative portfolio operating system that automates the full investment lifecycle: data ingestion, regime detection, ML-driven alpha generation, dynamic risk management, utility-based execution, performance attribution, and continuous operations — all governed by trust-calibrated automation.
 
 ---
 
 ## Thesis
 
-> **Can friction-aware portfolio optimization outperform passive allocation on a risk-adjusted basis?**
+> **Can a fully automated, friction-aware portfolio system with ML-driven signals, regime awareness, and trust-calibrated execution outperform passive allocation on a risk-adjusted basis — while remaining personally deployable?**
 
-Most retail portfolio tools ignore the real costs of trading — taxes, slippage, FX spreads, and transaction fees. Portfolio OS models these explicitly and measures whether the net-of-friction alpha justifies active management.
+Most retail portfolio tools ignore the real costs of trading — taxes, slippage, FX spreads, and transaction fees — and operate without awareness of market regimes or model health. Portfolio OS models these explicitly, detects regime shifts, generates ML alpha, manages risk dynamically, and gates execution through utility analysis and trust scoring.
 
 ---
 
@@ -17,45 +17,81 @@ Most retail portfolio tools ignore the real costs of trading — taxes, slippage
 | Type | Examples | Source |
 |------|----------|--------|
 | US equities | AAPL | Yahoo Finance |
-| US ETFs | SPY | Yahoo Finance |
+| US ETFs | SPY, VOO | Yahoo Finance |
 | Indian equities (NSE) | RELIANCE.NS, INFY.NS | Yahoo Finance |
 | Indian mutual funds | SBI Bluechip Direct Growth | MFAPI |
+| Fixed income | EPF, PPF, FD, NPS, SGB | Synthetic (annual_rate) |
+| Commodities | Physical Gold, Silver | Yahoo (GC=F, SI=F proxy) |
 | FX rates | USD/INR | Yahoo Finance |
 
-Assets are declared in [`configs/asset_master.csv`](configs/asset_master.csv). Current holdings live in [`data/holdings/current_holdings.csv`](data/holdings/current_holdings.csv).
+Assets are declared in [`configs/asset_master.csv`](configs/asset_master.csv).
 
 ---
 
 ## Architecture
 
-Portfolio OS is built as a modular pipeline, each stage adding a layer of capability. The entry point [`app.py`](app.py) orchestrates all stages sequentially.
+Portfolio OS is built as an 8-sprint modular system. The `OrchestrationEngine` manages the daily lifecycle with event-driven architecture, dependency-aware execution, retry logic, and SLA compliance.
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Ingestion   │────▶│  FX & NAV    │────▶│  Analytics   │────▶│  Features    │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-                                                                      │
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐            │
-│  Validation  │◀────│  Backtesting │◀────│ Optimization │◀───────────┘
-└──────────────┘     └──────────────┘     └──────────────┘
-                            │
-                     ┌──────────────┐
-                     │  Dashboard   │
-                     └──────────────┘
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Ingestion  │─▶│   Features  │─▶│   Regimes   │─▶│  ML Alpha   │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
+                                                           │
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│ Attribution │◀─│  Execution  │◀─│Optimization │◀────────┘
+└─────────────┘  └─────────────┘  └─────────────┘
+       │                                 ▲
+       ▼                                 │
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Monitoring  │  │Orchestration│  │ Risk Engine │
+└─────────────┘  └─────────────┘  └─────────────┘
+       │                │
+       ▼                ▼
+┌─────────────┐  ┌─────────────┐
+│  Dashboard  │  │ Deployment  │
+│ (13 views)  │  │(Trust/Ops)  │
+└─────────────┘  └─────────────┘
 ```
 
-### Module Breakdown
+### Sprint Architecture
+
+| Sprint | Focus | Key Capabilities |
+|--------|-------|------------------|
+| **1** | Infrastructure & Core Pipeline | Ingestion, FX, analytics, features, optimization, backtesting, validation, warehouse, API, dashboard |
+| **2** | Regime Intelligence | Multi-signal regime detection (risk_on/risk_off/crisis/recovery), regime-aware behavior, transition analysis |
+| **3** | ML Alpha Engine | Walk-forward LightGBM + CatBoost ensemble, SHAP explainability, feature quality pipeline, MLflow tracking |
+| **4** | Dynamic Risk & Covariance | EWMA volatility, regime-aware covariance, tail risk (CVaR), risk budgeting, vol scaling, stress testing |
+| **5** | Utility-Based Execution | Utility engine (friction gating), tax-loss harvesting, slippage modeling, paper trading, state machine |
+| **6** | Attribution & Monitoring | Brinson attribution, factor decomposition, alert engine, anomaly detection, audit trail, notifications |
+| **7** | Orchestration & Automation | Event bus, DAG dependencies, retry/self-healing, scheduling, MLOps, SLA tracking, governance |
+| **8** | Hardening & Deployment | E2E validation, chaos testing, trust calibration, walk-forward evaluation, human override layer |
+
+---
+
+## Module Breakdown
 
 | # | Module | Purpose |
-|--------|--------|---------|
-| **1** | `ingestion/` | Download and validate market data from Yahoo Finance and MFAPI. Persist raw data as Parquet files. |
-| **2** | `fx/` | Normalize all prices to INR base currency. Calculate portfolio NAV, FX attribution, and exposure breakdowns. |
-| **3** | `analytics/` | Compute risk metrics (CAGR, Sharpe, Sortino, max drawdown, Calmar), rolling analytics, drawdown periods, and benchmark comparisons. Generate HTML charts and CSV reports. |
-| **4** | `features/` | Engineer alpha signals — momentum, volatility, trend, mean reversion, factor composites. Build a feature store with composite scoring and signal ranking. |
-| **5** | `optimization/` | Portfolio construction — Hierarchical Risk Parity (HRP), equal weight, inverse volatility, risk parity baselines. Weight constraints, signal-tilted allocation, turnover management, and rebalance scheduling. |
-| **6** | `backtests/` | Friction-aware backtesting engine with realistic transaction costs (Indian STT, GST, stamp duty; US SEC fees), capital gains taxes (STCG/LTCG with lot tracking), slippage modeling, and benchmark comparison suite. |
-| **7** | `dashboard/` | Streamlit-based interactive research interface with 6 pages: Overview, Analytics, Optimization, Backtests, Exposure, and Recommendations. |
-| **8** | `validation/` | Research hardening — walk-forward validation, market regime analysis, parameter sensitivity, overfitting detection, signal decay, Monte Carlo simulation, stress testing, and a composite Research Quality Score. |
+|---|--------|---------|
+| 1 | `ingestion/` | Yahoo Finance, MFAPI, fixed income, metals — Parquet persistence |
+| 2 | `fx/` | Multi-currency → INR normalization, FX attribution |
+| 3 | `analytics/` | Risk metrics (CAGR, Sharpe, Sortino, Calmar), drawdowns, rolling stats |
+| 4 | `features/` | Momentum, volatility, trend, mean reversion, factor composites, signal ranking |
+| 5 | `optimization/` | HRP, risk parity, inverse vol, signal-tilted allocation, constraints |
+| 6 | `backtests/` | Friction-aware engine: Indian STT/GST + US SEC fees, STCG/LTCG taxes, slippage |
+| 7 | `validation/` | Walk-forward, Monte Carlo, overfitting detection, stress testing, Research Score |
+| 8 | `regimes/` | Multi-signal regime detection, regime behavior, features, transitions |
+| 9 | `ml_models/` | Walk-forward ensemble (LightGBM + CatBoost), SHAP, MLflow, feature quality |
+| 10 | `risk_engine/` | 8-step pipeline: volatility, covariance, correlation, tail risk, budgeting, vol scaling, stress tests |
+| 11 | `execution/` | Utility engine, rebalancing, tax harvesting, slippage, paper trading, state machine |
+| 12 | `monitoring/` | Attribution, explainability, alerts (5 categories), anomaly detection, notifications, audit trail |
+| 13 | `orchestration/` | Event bus, dependency graph, retry engine, scheduler, MLOps, state, SLA, governance |
+| 14 | `deployment/` | Validation framework, failure simulation, trust calibration, walk-forward, security, hardening |
+| 15 | `warehouse/` | DuckDB query layer over 44 Parquet tables |
+| 16 | `api/` | FastAPI REST: health, portfolio, rebalance, regime |
+| 17 | `dashboard/` | Streamlit with 13 views + 5 reusable component modules |
+| 18 | `contracts/` | 50+ Pydantic v2 data models |
+| 19 | `configs/` | Hydra YAML configs (8 config files) |
+| 20 | `infra/` | Docker (API + Dashboard + warehouse) |
 
 ---
 
@@ -63,117 +99,132 @@ Portfolio OS is built as a modular pipeline, each stage adding a layer of capabi
 
 ```
 portfolio-os/
-├── app.py                  # Main pipeline entry point
-│
-├── ingestion/              # Data loaders
-│   ├── yahoo_loader.py     #   Yahoo Finance downloader
-│   └── mf_loader.py        #   Indian mutual fund loader (MFAPI)
-│
-├── fx/                     # Currency normalization
-│   ├── fx_loader.py        #   FX rate fetcher (USD/INR)
-│   ├── converter.py        #   Multi-currency → INR converter
-│   └── attribution.py      #   FX vs local-return attribution
-│
-├── analytics/              # Portfolio analytics & risk
-│   ├── metrics.py          #   Core metrics (CAGR, Sharpe, Sortino, etc.)
-│   ├── portfolio_nav.py    #   Portfolio NAV calculation
-│   ├── returns.py          #   Daily, log, cumulative, rolling returns
-│   ├── drawdown.py         #   Drawdown series & period analysis
-│   ├── rolling.py          #   Rolling analytics (vol, Sharpe, beta)
-│   ├── benchmark.py        #   Benchmark comparison engine
-│   ├── exposure.py         #   Country/currency/asset-type exposure
-│   ├── holdings_loader.py  #   Holdings CSV reader
-│   └── charts.py           #   Plotly HTML chart generation
-│
-├── features/               # Alpha signal engineering
-│   ├── feature_store.py    #   Build/save/load feature store
-│   ├── signal_ranker.py    #   Composite score & ranking
-│   ├── momentum.py         #   Momentum features (5d–252d)
-│   ├── volatility.py       #   Realized volatility features
-│   ├── trend.py            #   SMA ratios, trend strength
-│   ├── mean_reversion.py   #   Z-scores, Bollinger signals
-│   ├── returns.py          #   Return-based features
-│   ├── factor_features.py  #   Multi-factor composites
-│   └── validators.py       #   Feature validation & lookahead checks
-│
-├── optimization/           # Portfolio construction
-│   ├── hrp.py              #   Hierarchical Risk Parity
-│   ├── allocator.py        #   Signal-tilted portfolio builder
-│   ├── baselines.py        #   Equal weight, inverse vol, risk parity
-│   ├── constraints.py      #   Weight caps, country limits
-│   ├── covariance.py       #   Covariance estimation (shrinkage)
-│   ├── turnover.py         #   Turnover calculation & drift
-│   ├── rebalance.py        #   Rebalance scheduling & trade generation
-│   └── reporting.py        #   Allocation reports
-│
-├── backtests/              # Friction-aware backtesting
-│   ├── engine.py           #   Core backtest engine
-│   ├── portfolio_state.py  #   Portfolio state & tax lot tracking
-│   ├── ledger.py           #   Trade ledger
-│   ├── costs.py            #   Transaction cost models (IN/US)
-│   ├── taxes.py            #   Capital gains tax engine (STCG/LTCG)
-│   ├── execution.py        #   Order execution with slippage
-│   ├── rebalance.py        #   Backtest rebalance logic
-│   ├── benchmark.py        #   Benchmark strategy suite
-│   ├── attribution.py      #   Performance attribution
-│   └── reporting.py        #   Backtest reports
-│
-├── validation/             # Research hardening
-│   ├── walkforward.py      #   Walk-forward train/test validation
-│   ├── regimes.py          #   Market regime detection & eval
-│   ├── robustness.py       #   Parameter sensitivity analysis
-│   ├── overfitting.py      #   Overfitting detection
-│   ├── signal_decay.py     #   Signal IC decay analysis
-│   ├── monte_carlo.py      #   Bootstrap Monte Carlo simulation
-│   ├── stress_tests.py     #   Stress scenarios & liquidity stress
-│   ├── diagnostics.py      #   Research health diagnostics
-│   ├── research_score.py   #   Composite Research Quality Score
-│   └── reporting.py        #   Validation report generator
-│
-├── dashboard/              # Streamlit research interface
-│   ├── app.py              #   Dashboard entry point
-│   ├── layout.py           #   Theme & styling
-│   ├── state.py            #   Session state management
-│   ├── views/              #   6 dashboard views
-│   │   ├── overview.py     #     KPI cards, NAV curve, allocation
-│   │   ├── analytics.py    #     Risk metrics, rolling charts, drawdowns
-│   │   ├── optimization.py #     Weight targets, HRP tree, constraints
-│   │   ├── backtests.py    #     NAV comparison, trade log, friction
-│   │   ├── exposure.py     #     Country, currency, asset-type breakdown
-│   │   └── recommendations.py #  Rebalance trades, signal scores
-│   ├── components/         #   Reusable UI components
-│   │   ├── charts.py       #     Chart wrappers
-│   │   ├── filters.py      #     Sidebar filters
-│   │   ├── metrics.py      #     KPI metric cards
-│   │   ├── nav.py          #     Navigation helpers
-│   │   └── tables.py       #     Data table renderers
-│   └── utils/              #   Dashboard utilities
-│       ├── loaders.py      #     Data loaders (Parquet → DataFrame)
-│       ├── formatters.py   #     Number/currency formatters
-│       └── exporters.py    #     Data export helpers
-│
-├── reports/                # Generated outputs
-│   └── report_generator.py #   CSV & HTML report builder
-│
+├── app.py                      # Main pipeline entry point
 ├── configs/
-│   └── asset_master.csv    # Asset universe declaration
+│   ├── asset_master.csv        # Asset universe
+│   ├── orchestration.yaml      # Sprint 7: workflow, events, scheduling, MLOps
+│   ├── deployment.yaml         # Sprint 8: validation, trust, override
+│   └── hydra/                  # Hydra config hierarchy
+│       ├── base.yaml
+│       ├── execution_engine.yaml
+│       ├── risk_engine.yaml
+│       ├── ml_alpha.yaml
+│       └── monitoring.yaml
 │
+├── ingestion/                  # Data loaders (yahoo, mf, fixed income)
+├── fx/                         # Currency normalization & attribution
+├── analytics/                  # Portfolio analytics & risk metrics
+├── features/                   # Alpha signal engineering
+├── optimization/               # Portfolio construction (HRP, constraints)
+├── backtests/                  # Friction-aware backtesting
+├── validation/                 # Research hardening (walk-forward, Monte Carlo)
+│
+├── regimes/                    # Regime Intelligence Engine
+│   ├── detectors/              #   Multi-signal regime detection
+│   ├── behavior/               #   Regime-specific behavior params
+│   ├── features/               #   Regime-aware features
+│   ├── evaluation/             #   Regime model evaluation
+│   └── transitions/            #   Transition detection & analysis
+│
+├── ml_models/                  # ML Alpha Engine
+│   ├── training/               #   LightGBM + CatBoost walk-forward
+│   ├── inference/              #   Alpha score generation
+│   ├── evaluation/             #   Rank IC, hit rate grading
+│   ├── explainability/         #   SHAP explanations
+│   ├── ensembles/              #   Model stacking
+│   ├── features/               #   Feature importance analysis
+│   ├── quality/                #   Feature drift & quality checks
+│   ├── confidence/             #   Regime-aware confidence scoring
+│   └── tracking/               #   MLflow experiment tracking
+│
+├── risk_engine/                # Dynamic Risk & Covariance Engine
+│   ├── volatility/             #   EWMA, realized, regime-aware vol
+│   ├── covariance/             #   LedoitWolf, shrinkage, regime-aware
+│   ├── correlation/            #   Rolling correlation, crisis clustering
+│   ├── tail_risk/              #   CVaR, semivariance, tail beta
+│   ├── budgeting/              #   Risk contribution per asset
+│   ├── scaling/                #   Vol targeting / scaling
+│   ├── stress_testing/         #   Historical + synthetic scenarios
+│   ├── constraints/            #   Risk-based constraints
+│   └── evaluation/             #   Risk model evaluation
+│
+├── execution/                  # Utility-Based Execution Engine
+│   ├── utility_engine/         #   Friction vs alpha utility analysis
+│   ├── rebalancing/            #   Regime-adaptive rebalance triggers
+│   ├── tax_engine/             #   STCG/LTCG, tax-loss harvesting
+│   ├── slippage/               #   Market impact modeling
+│   ├── simulation/             #   Execution simulation
+│   ├── paper_trading/          #   Virtual portfolio management
+│   ├── audit/                  #   Execution journal & audit
+│   ├── turnover/               #   Turnover budgeting
+│   └── state_machine/          #   Portfolio lifecycle states
+│
+├── monitoring/                 # Attribution & Monitoring Layer
+│   ├── attribution/            #   Brinson-Hood-Beebower + factor attribution
+│   ├── explainability/         #   Decision explanations + trade narratives
+│   ├── alerts/                 #   5-category alert engine
+│   ├── notifications/          #   Telegram, Slack, Email channels
+│   ├── observability/          #   Component health tracking
+│   ├── anomaly_detection/      #   Z-score anomaly detection
+│   └── audit/                  #   Lineage tracing & audit trail
+│
+├── orchestration/              # Orchestration & Automation Engine
+│   ├── events/                 #   Pub/sub event bus
+│   ├── dependencies/           #   DAG dependency graph
+│   ├── retries/                #   Exponential backoff + circuit breaker
+│   ├── scheduling/             #   Daily/weekly/monthly cadences
+│   ├── mlops/                  #   Retraining triggers, shadow deployment
+│   ├── state/                  #   Global system state coordination
+│   ├── sla/                    #   Pipeline SLA compliance
+│   └── governance/             #   Config snapshots, versioning
+│
+├── deployment/                 # MVP Hardening & Deployment
+│   ├── validation/             #   E2E integrity checks
+│   ├── failure_sim/            #   Chaos testing (failure simulation)
+│   ├── trust/                  #   5-dimension trust calibration
+│   ├── walkforward/            #   Long-horizon survivability
+│   ├── security/               #   Rate limiting, auth, CORS
+│   ├── hardening/              #   Backup/restore, reproducibility
+│   └── report/                 #   MVP stabilization assessment
+│
+├── warehouse/                  # DuckDB query layer (44 tables)
+├── api/                        # FastAPI REST API
+│   └── routers/                #   health, portfolio, rebalance, regime
+├── contracts/                  # Pydantic v2 data models (50+)
+├── dashboard/                  # Streamlit research interface (13 views)
+│   ├── views/
+│   │   ├── overview.py         #   KPIs, NAV curve, allocation
+│   │   ├── analytics.py        #   Risk metrics, rolling, drawdowns
+│   │   ├── optimization.py     #   Weights, HRP, constraints
+│   │   ├── backtests.py        #   NAV comparison, friction, trade log
+│   │   ├── exposure.py         #   Country/currency/type breakdown
+│   │   ├── recommendations.py  #   Rebalance trades, signals
+│   │   ├── structural_health.py#   Research quality, validation
+│   │   ├── regime_intelligence.py # Regime detection, transitions
+│   │   ├── risk_intelligence.py#   Risk decomposition, stress tests
+│   │   ├── execution_intelligence.py # Utility, paper trading
+│   │   ├── explainability.py   #   Attribution, decisions, alerts
+│   │   ├── operations.py       #   Pipeline, events, SLA, MLOps
+│   │   └── command_center.py   #   Trust, override, deployment
+│   ├── components/             #   Charts, filters, metrics, tables
+│   └── utils/                  #   Loaders, formatters, exporters
+│
+├── infra/                      # Infrastructure
+│   ├── Dockerfile.api
+│   ├── Dockerfile.dashboard
+│   └── docker-compose.yml
+│
+├── reports/                    # Generated outputs (HTML + CSV)
 ├── data/
-│   ├── raw/                # Raw market data (Parquet)
-│   ├── processed/          # Computed results (Parquet)
-│   ├── holdings/           # Portfolio holdings (CSV)
-│   ├── cache/              # Temporary cache
-│   └── exports/            # User exports
+│   ├── raw/                    # Raw market data (Parquet)
+│   ├── processed/              # Pipeline outputs (Parquet)
+│   ├── holdings/               # Portfolio holdings (CSV)
+│   ├── backups/                # Operational backups
+│   └── cache/                  # Temporary cache
 │
-├── tests/                  # Test suite
-├── notebooks/              # Research notebooks
-├── utils/
-│   └── validators.py       # Data quality checks
-│
-├── conftest.py             # Pytest shared fixtures
-├── requirements.txt
-├── .env                    # API keys (gitignored)
-└── .gitignore
+├── tests/                      # 560 tests (all passing)
+├── notebooks/                  # Research notebooks
+└── requirements.txt
 ```
 
 ---
@@ -184,49 +235,20 @@ portfolio-os/
 
 | File | Description |
 |------|-------------|
-| `inr_prices.parquet` | All asset prices normalized to INR |
-| `portfolio_nav.parquet` | Daily portfolio NAV series |
-| `fx_attribution.parquet` | FX vs local-return breakdown |
-| `returns.parquet` | Daily, log, cumulative, rolling returns |
-| `rolling_analytics.parquet` | Rolling Sharpe, volatility, beta |
-| `drawdown_series.parquet` | Daily drawdown series |
-| `features.parquet` | Full feature store (momentum, vol, trend) |
-| `signal_scores.parquet` | Composite signal scores & ranks |
+| `inr_prices.parquet` | All prices normalized to INR |
+| `portfolio_nav.parquet` | Daily portfolio NAV |
+| `features.parquet` | Full feature store |
+| `alpha_scores.parquet` | ML alpha predictions + confidence |
+| `regime_states.parquet` | Regime classifications |
 | `target_weights.parquet` | Optimized portfolio weights |
-| `rebalance_trades.parquet` | Suggested rebalance trades |
-| `backtest_nav.parquet` | Backtest NAV series with friction |
+| `rebalance_trades.parquet` | Proposed trades |
+| `backtest_nav.parquet` | Backtest NAV with friction |
 | `trade_ledger.parquet` | Complete trade history |
-| `walkforward_results.parquet` | Walk-forward OOS performance |
-| `regime_analysis.parquet` | Market regime classifications |
-| `regime_performance.parquet` | Per-regime strategy metrics |
-| `parameter_sensitivity.parquet` | Parameter grid search results |
-| `signal_decay.parquet` | Signal IC at multiple horizons |
-| `monte_carlo_summary.parquet` | Monte Carlo simulation stats |
-| `stress_test_results.parquet` | Stress scenario impacts |
-| `liquidity_stress.parquet` | Slippage sensitivity analysis |
+| `system_state.json` | Current system state |
 
-### Reports (`reports/`)
+### Warehouse (44 DuckDB-registered tables)
 
-| File | Description |
-|------|-------------|
-| `portfolio_metrics.csv` | Core risk metrics summary |
-| `benchmark_comparison.csv` | Portfolio vs benchmark performance |
-| `drawdown_periods.csv` | Drawdown period detail |
-| `strategy_comparison.csv` | Optimization strategy comparison |
-| `backtest_comparison.csv` | Backtest strategy comparison |
-| `backtest_attribution.csv` | Gross/net CAGR, friction drag |
-| `walkforward_results.csv` | Walk-forward train/test Sharpe |
-| `regime_performance.csv` | Performance by market regime |
-| `parameter_sensitivity.csv` | Sharpe across parameter grid |
-| `stress_test_results.csv` | Stress scenario impact analysis |
-| `signal_decay.csv` | Signal IC decay across horizons |
-| `monte_carlo_summary.csv` | MC return/drawdown distribution |
-| `research_score.csv` | Composite research quality score |
-| `diagnostics_summary.csv` | Research health diagnostics |
-| `overfitting_flags.csv` | Overfitting detection flags |
-| `portfolio_recommendation.csv` | Actionable rebalance trades |
-| `portfolio_report.html` | Full HTML portfolio report |
-| `*.html` | Interactive Plotly charts |
+Includes: `inr_prices`, `portfolio_nav`, `features`, `alpha_scores`, `regime_states`, `target_weights`, `backtest_nav`, `trade_ledger`, `volatility_state`, `risk_budget`, `paper_portfolio`, `execution_journal`, `attribution_summary`, `factor_exposures`, `monitoring_alerts`, `anomaly_log`, `audit_trail`, `workflow_runs`, `trust_scores`, `validation_results`, and more.
 
 ---
 
@@ -235,49 +257,56 @@ portfolio-os/
 | Layer | Tool | Purpose |
 |-------|------|---------|
 | Language | Python 3.13 | Core runtime |
-| Data | Pandas, NumPy | Data manipulation |
-| Storage | Parquet (PyArrow) | Columnar persistence |
+| Data | Pandas, NumPy, Polars | Data manipulation |
+| Storage | Parquet, DuckDB | Columnar persistence + warehouse |
 | Market Data | yfinance, mftool | Data ingestion |
-| Statistics | SciPy, scikit-learn, statsmodels | Statistical analysis |
-| Optimization | Custom HRP | Portfolio construction |
-| Visualization | Plotly | Interactive charts |
-| Dashboard | Streamlit | Research interface |
+| ML | LightGBM, CatBoost, SHAP | Alpha generation & explainability |
+| Tracking | MLflow | Experiment tracking |
+| Risk | PyPortfolioOpt, scikit-learn (LedoitWolf) | Portfolio optimization & covariance |
+| Statistics | SciPy, statsmodels | Statistical analysis |
+| API | FastAPI, uvicorn | REST API |
+| Dashboard | Streamlit, Plotly | 13-view research interface |
+| Config | Hydra, OmegaConf, Pydantic v2 | Config + data contracts |
 | Logging | Loguru | Structured logging |
-| Config | python-dotenv | Environment management |
+| Infra | Docker, docker-compose | Containerization |
 
 ---
 
-## Recent Results
+## Test Coverage
 
-| Metric | Value |
-|--------|-------|
-| Portfolio CAGR | +25.55% |
-| Sharpe Ratio | 1.074 |
-| Sortino Ratio | 1.358 |
-| Max Drawdown | -30.00% |
-| Backtest Net CAGR (HRP) | +19.01% |
-| Backtest Sharpe | 0.791 |
-| Friction Drag | 0.88% |
-| Research Quality Score | 70.8/100 (Grade B) |
-| Overfitting Assessment | ACCEPTABLE |
-| Monte Carlo Prob of Loss | 12.0% |
-| MC CVaR (5th percentile) | -19.13% |
+| Sprint | Module | Tests |
+|--------|--------|-------|
+| 1 | Core pipeline (ingestion, features, optimization, analytics, backtests) | ~150 |
+| 2 | Regime Intelligence | 23 |
+| 3 | ML Alpha Engine | 32 |
+| 4 | Dynamic Risk & Covariance | 52 |
+| 5 | Utility-Based Execution | 54 |
+| 6 | Attribution & Monitoring | 75 |
+| 7 | Orchestration & Automation | 57 |
+| 8 | Hardening & Deployment | 56 |
+| | **Total** | **560 passing** |
 
 ---
 
 ## Development History
 
-| Commit | Description |
-|--------|-------------|
-| `2e1e434` | Project bootstrap — structure, loaders, validators |
-| `9531ca9` | FX normalization, portfolio NAV, attribution, exposure |
-| `66d5ab2` | Analytics & risk engine — returns, metrics, drawdown, rolling, benchmark, charts, reports |
-| `d51e4a8` | Feature engineering — returns, momentum, volatility, trend, mean reversion, factors, signal ranker |
-| `eea4c3e` | Portfolio optimization — HRP, baselines, constraints, signal-tilt, turnover, rebalance |
-| `3ca05b1` | Friction-aware backtesting — taxes, slippage, costs, benchmarks, attribution |
-| `2a9ff07` | Streamlit dashboard — overview, analytics, optimization, backtests, exposure, recommendations |
-| `d360945` | Complete dashboard architecture per spec |
-| `6ecf628` | Validation, robustness & research hardening |
+| Commit | Sprint | Description |
+|--------|--------|-------------|
+| `2e1e434` | 1 | Project bootstrap — loaders, validators |
+| `9531ca9` | 1 | FX normalization, NAV, attribution, exposure |
+| `66d5ab2` | 1 | Analytics — returns, metrics, drawdown, rolling, benchmark |
+| `d51e4a8` | 1 | Feature engineering — momentum, vol, trend, mean reversion |
+| `eea4c3e` | 1 | Optimization — HRP, baselines, constraints, signal-tilt |
+| `3ca05b1` | 1 | Backtesting — taxes, slippage, costs, benchmarks |
+| `2a9ff07` | 1 | Dashboard — 6 views |
+| `6ecf628` | 1 | Validation — walk-forward, Monte Carlo, stress tests |
+| `d360945` | 1 | Infrastructure — warehouse, API, Docker, configs, contracts |
+| `d14dfac` | 2 | Regime Intelligence Engine (23 tests) |
+| `bf73ba3` | 3 | ML Alpha Engine (32 tests) |
+| `d4b8ee8` | 4 | Dynamic Risk & Covariance Engine (52 tests) |
+| `32bb5e3` | 5 | Utility-Based Execution Engine (54 tests) |
+| `81628a0` | 6 | Attribution, Explainability & Monitoring (75 tests) |
+| `326187c` | 7+8 | Orchestration + Hardening & Deployment (113 tests) |
 
 ---
 

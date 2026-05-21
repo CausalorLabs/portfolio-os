@@ -18,7 +18,7 @@ from dashboard.utils.formatters import fmt_currency, fmt_pct, fmt_number
 
 
 def render() -> None:
-    st.header("Backtest Explorer")
+    st.header("Backtest Explorer", help="Compare portfolio strategies using historical simulation with realistic friction costs (slippage, taxes, transaction fees).")
 
     comparison = load_backtest_comparison()
     attribution = load_backtest_attribution()
@@ -30,7 +30,7 @@ def render() -> None:
         return
 
     # ── Metrics table ────────────────────────────────────────────────────
-    st.subheader("Strategy Comparison")
+    st.subheader("Strategy Comparison", help="Side-by-side comparison of all tested allocation strategies. Shows risk-adjusted returns, drawdowns, and total friction costs.")
 
     display = comparison.copy()
     display.index.name = "Strategy"
@@ -76,7 +76,7 @@ def render() -> None:
     )
 
     # ── NAV comparison chart ─────────────────────────────────────────────
-    st.subheader("NAV Comparison")
+    st.subheader("NAV Comparison", help="Net Asset Value evolution for each strategy. Shows how ₹10L invested would have grown under each approach.")
 
     colors = ["#00d4aa", "#6c63ff", "#ff9f43", "#ee5a24", "#ff6b6b"]
 
@@ -108,7 +108,7 @@ def render() -> None:
 
     # ── Drawdown comparison ──────────────────────────────────────────────
     if not bt_nav.empty and "nav" in bt_nav.columns:
-        st.subheader("Drawdown (Primary Strategy)")
+        st.subheader("Drawdown (Primary Strategy)", help="Peak-to-trough declines for the primary HRP strategy. Deeper troughs = larger temporary losses.")
         nav_series = bt_nav["nav"]
         running_max = nav_series.cummax()
         dd_series = (nav_series - running_max) / running_max * 100
@@ -162,7 +162,7 @@ def render() -> None:
 
     # ── Friction breakdown ───────────────────────────────────────────────
     st.divider()
-    st.subheader("Friction Breakdown")
+    st.subheader("Friction Breakdown", help="How much trading costs reduced returns. Gross CAGR minus friction drag = Net CAGR. Includes slippage, commissions, and taxes.")
 
     left, right = st.columns(2)
 
@@ -201,7 +201,7 @@ def render() -> None:
     # ── Trade ledger ─────────────────────────────────────────────────────
     if not ledger.empty:
         st.divider()
-        st.subheader("Trade Ledger")
+        st.subheader("Trade Ledger", help="Complete record of every simulated trade including execution price, slippage, transaction costs, and tax impact.")
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Trades", len(ledger))

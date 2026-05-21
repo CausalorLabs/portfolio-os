@@ -20,7 +20,7 @@ from dashboard.utils.formatters import fmt_currency, fmt_pct, fmt_number
 
 
 def render() -> None:
-    st.header("Portfolio Overview")
+    st.header("Portfolio Overview", help="High-level snapshot of your portfolio — NAV, key risk-adjusted metrics, allocation breakdown, and recent drawdown history.")
 
     nav = load_portfolio_nav()
     metrics_df = load_portfolio_metrics()
@@ -39,12 +39,12 @@ def render() -> None:
     daily_ret = nav.iloc[-1].get("daily_return", 0.0)
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("Portfolio NAV", fmt_currency(latest_nav), fmt_pct(daily_ret))
-    c2.metric("CAGR", fmt_pct(metrics.get("cagr", 0)))
-    c3.metric("Sharpe", fmt_number(metrics.get("sharpe_ratio", 0)))
-    c4.metric("Sortino", fmt_number(metrics.get("sortino_ratio", 0)))
-    c5.metric("Max Drawdown", fmt_pct(metrics.get("max_drawdown", 0)))
-    c6.metric("Volatility", fmt_pct(metrics.get("annualized_volatility", 0)))
+    c1.metric("Portfolio NAV", fmt_currency(latest_nav), fmt_pct(daily_ret), help="Current total portfolio value in INR. Delta shows today's return.")
+    c2.metric("CAGR", fmt_pct(metrics.get("cagr", 0)), help="Compound Annual Growth Rate — annualized return since inception.")
+    c3.metric("Sharpe", fmt_number(metrics.get("sharpe_ratio", 0)), help="Risk-adjusted return: excess return per unit of volatility. >1.0 is good, >2.0 is excellent.")
+    c4.metric("Sortino", fmt_number(metrics.get("sortino_ratio", 0)), help="Like Sharpe but only penalizes downside volatility. Higher is better.")
+    c5.metric("Max Drawdown", fmt_pct(metrics.get("max_drawdown", 0)), help="Largest peak-to-trough decline in portfolio value. Measures worst-case loss.")
+    c6.metric("Volatility", fmt_pct(metrics.get("annualized_volatility", 0)), help="Annualized standard deviation of returns. Lower means more stable.")
 
     st.divider()
 
@@ -52,7 +52,7 @@ def render() -> None:
     col_chart, col_alloc = st.columns([3, 1])
 
     with col_chart:
-        st.subheader("Portfolio NAV")
+        st.subheader("Portfolio NAV", help="Net Asset Value over time — the total value of all holdings in INR.")
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=nav["date"], y=nav["portfolio_nav"],
@@ -70,7 +70,7 @@ def render() -> None:
         st.plotly_chart(fig, width="stretch")
 
     with col_alloc:
-        st.subheader("Allocation")
+        st.subheader("Allocation", help="Current portfolio weight breakdown by asset. Each slice shows the percentage of total portfolio value.")
         # Build allocation from latest prices
         inr = load_inr_prices()
         held_tickers = holdings["ticker"].tolist()
@@ -106,7 +106,7 @@ def render() -> None:
     left, right = st.columns(2)
 
     with left:
-        st.subheader("Cumulative Return")
+        st.subheader("Cumulative Return", help="Total percentage gain/loss since the first day of the portfolio.")
         cum_ret = (nav["portfolio_nav"] / first_nav - 1) * 100
         fig_cum = go.Figure()
         fig_cum.add_trace(go.Scatter(
@@ -122,7 +122,7 @@ def render() -> None:
         st.plotly_chart(fig_cum, width="stretch")
 
     with right:
-        st.subheader("Drawdown")
+        st.subheader("Drawdown", help="Peak-to-trough decline at each point in time. Shows how much the portfolio dropped from its previous high.")
         dd = load_drawdown_series()
         if not dd.empty:
             fig_dd = go.Figure()
@@ -141,6 +141,6 @@ def render() -> None:
 
     # ── Holdings table ───────────────────────────────────────────────────
     st.divider()
-    st.subheader("Holdings")
+    st.subheader("Holdings", help="All current positions with quantities, asset names, country of domicile, and trading currency.")
     display = holdings.merge(master[["ticker", "asset_name", "country", "currency"]], on="ticker", how="left")
     st.dataframe(display, width="stretch", hide_index=True)

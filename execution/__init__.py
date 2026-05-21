@@ -154,8 +154,16 @@ class ExecutionEngine:
         if not plan.trades:
             logger.info("  No material trades — skipping")
             self.state_machine.reject_trade("no_material_trades")
+
+            self.journal.log_no_trade(
+                regime=regime,
+                trigger="none",
+                rationale="No material trades after plan generation",
+            )
+
             self.paper.record_snapshot(dt, prices)
             result["reason"] = "no_trades"
+            result["decision"] = "no_trade"
             return result
 
         # Step 4: Filter unnecessary trades

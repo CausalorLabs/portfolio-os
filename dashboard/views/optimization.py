@@ -22,7 +22,7 @@ from dashboard.utils.exporters import export_section
 
 
 def render() -> None:
-    st.header("Optimization Explorer")
+    st.header("Optimization Explorer", help="Visualize how the optimizer allocates capital. Compare current vs target weights, strategy comparisons, constraint diagnostics, and risk contributions.")
 
     target = load_target_weights()
     strategy = load_strategy_comparison()
@@ -33,7 +33,7 @@ def render() -> None:
         return
 
     # ── Current vs Target ────────────────────────────────────────────────
-    st.subheader("Current vs Target Allocation")
+    st.subheader("Current vs Target Allocation", help="Side-by-side comparison of your current portfolio weights against the optimizer's recommended targets.")
 
     # Current weights from holdings + latest prices
     holdings = load_holdings()
@@ -78,7 +78,7 @@ def render() -> None:
     left, right = st.columns(2)
 
     with left:
-        st.subheader("Weight Changes")
+        st.subheader("Weight Changes", help="Detailed view of weight adjustments needed. Positive change = buy more, negative = sell. Action column shows BUY/SELL/HOLD.")
         import pandas as pd
         changes = pd.DataFrame({
             "Ticker": tickers,
@@ -94,7 +94,7 @@ def render() -> None:
         st.dataframe(changes, width="stretch", hide_index=True)
 
     with right:
-        st.subheader("Allocation Rationale")
+        st.subheader("Allocation Rationale", help="Signal-driven reasoning behind each weight change. Based on composite momentum, trend, and factor scores.")
         scores = load_signal_scores()
         if not scores.empty:
             latest_date = scores["date"].max()
@@ -132,7 +132,7 @@ def render() -> None:
     # ── Strategy comparison ──────────────────────────────────────────────
     if not strategy.empty:
         st.divider()
-        st.subheader("Strategy Comparison")
+        st.subheader("Strategy Comparison", help="Compare weight recommendations from different optimization strategies (HRP, Mean-Variance, Equal Weight, etc.).")
 
         tickers_strat = strategy["ticker"].tolist()
         strat_cols = [c for c in strategy.columns if c != "ticker"]
@@ -156,7 +156,7 @@ def render() -> None:
 
     # ── Constraint diagnostics ───────────────────────────────────────────
     st.divider()
-    st.subheader("Constraint Diagnostics")
+    st.subheader("Constraint Diagnostics", help="Check whether target weights satisfy position limits, country caps, and other constraints. ✅ = within bounds, ⚠️ = breached.")
 
     max_w = st.session_state.get("max_weight", 0.40)
     min_w = st.session_state.get("min_weight", 0.05)
@@ -194,11 +194,11 @@ def render() -> None:
         st.markdown("")
         st.markdown("**Turnover Impact**")
         turnover = sum(abs(target_w.get(t, 0) - current_w.get(t, 0)) for t in tickers) / 2
-        st.metric("Expected Turnover", f"{turnover:.1%}")
+        st.metric("Expected Turnover", f"{turnover:.1%}", help="Estimated one-way turnover: half the sum of absolute weight changes. Higher turnover = higher transaction costs.")
 
     # ── Risk contribution (marginal) ─────────────────────────────────────
     st.divider()
-    st.subheader("Risk Contribution")
+    st.subheader("Risk Contribution", help="Each asset's share of total portfolio risk. Assets with disproportionately high contributions may need rebalancing.")
     st.caption("Estimated marginal risk contribution per asset (equal correlation approximation)")
 
     # Simple risk contribution estimate: weight × vol

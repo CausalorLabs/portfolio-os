@@ -220,7 +220,7 @@ def _build_duration_chart(durations: pd.DataFrame) -> go.Figure:
 
 
 def render() -> None:
-    st.header("Regime Intelligence")
+    st.header("Regime Intelligence", help="Context-aware market regime detection using HMM. Identifies risk-on, risk-off, and panic states to adapt portfolio behavior dynamically.")
     st.caption("Context-aware market regime detection — adaptive portfolio behavior")
 
     with st.spinner("Running regime intelligence pipeline…"):
@@ -257,10 +257,10 @@ def render() -> None:
     # ── Behavior parameters ──────────────────────────────────────────────
     if behavior:
         bc1, bc2, bc3, bc4 = st.columns(4)
-        bc1.metric("Max Equity", f"{behavior.max_equity_weight:.0%}")
-        bc2.metric("Drift Threshold", f"{behavior.rebalance_drift_threshold:.0%}")
-        bc3.metric("Tilt Strength", f"{behavior.tilt_strength:.2f}")
-        bc4.metric("Covariance", behavior.covariance_method)
+        bc1.metric("Max Equity", f"{behavior.max_equity_weight:.0%}", help="Maximum equity allocation allowed under the current regime. Lower in panic regimes for capital preservation.")
+        bc2.metric("Drift Threshold", f"{behavior.rebalance_drift_threshold:.0%}", help="How far weights can drift from target before triggering a rebalance. Tighter in volatile regimes.")
+        bc3.metric("Tilt Strength", f"{behavior.tilt_strength:.2f}", help="How aggressively the optimizer tilts toward momentum signals. Higher = more conviction in signal-driven allocation.")
+        bc4.metric("Covariance", behavior.covariance_method, help="Covariance estimation method used. 'ledoit_wolf' is shrinkage-based (robust), 'empirical' uses raw sample covariance.")
 
     st.divider()
 
@@ -269,31 +269,31 @@ def render() -> None:
         total = quality.get("total_score", 0)
         grade = quality.get("grade", "?")
         qc1, qc2, qc3, qc4, qc5 = st.columns(5)
-        qc1.metric("Quality Score", f"{total}/100 ({grade})")
-        qc2.metric("Stability", f"{quality.get('stability_score', 0)}/25")
-        qc3.metric("Predictive", f"{quality.get('predictive_score', 0)}/25")
-        qc4.metric("Crisis Align", f"{quality.get('crisis_alignment_score', 0)}/25")
-        qc5.metric("Separation", f"{quality.get('separation_score', 0)}/25")
+        qc1.metric("Quality Score", f"{total}/100 ({grade})", help="Overall regime model quality. A/B = production-ready, C = acceptable, D/F = needs recalibration.")
+        qc2.metric("Stability", f"{quality.get('stability_score', 0)}/25", help="How stable regime assignments are over time. Low = frequent noisy flips.")
+        qc3.metric("Predictive", f"{quality.get('predictive_score', 0)}/25", help="How well regime labels predict future returns. High = regimes carry real information.")
+        qc4.metric("Crisis Align", f"{quality.get('crisis_alignment_score', 0)}/25", help="How well panic regime aligns with known market crises (COVID, 2022 rate shock, etc.).")
+        qc5.metric("Separation", f"{quality.get('separation_score', 0)}/25", help="Statistical separation between regime distributions. High = regimes are distinct, not overlapping.")
 
     st.divider()
 
     # ── KPI row ──────────────────────────────────────────────────────────
     kc1, kc2, kc3, kc4 = st.columns(4)
-    kc1.metric("Transitions/Year", stability.get("transitions_per_year", "N/A"))
-    kc2.metric("Avg Duration", f"{stability.get('avg_duration_days', 0):.0f} days")
-    kc3.metric("Dominant Regime", stability.get("dominant_regime", "N/A"))
-    kc4.metric("Episodes", stability.get("n_episodes", "N/A"))
+    kc1.metric("Transitions/Year", stability.get("transitions_per_year", "N/A"), help="Average number of regime changes per year. Too many = noisy model, too few = slow adaptation.")
+    kc2.metric("Avg Duration", f"{stability.get('avg_duration_days', 0):.0f} days", help="Average length of a regime episode in calendar days.")
+    kc3.metric("Dominant Regime", stability.get("dominant_regime", "N/A"), help="The regime that occurs most frequently across the sample period.")
+    kc4.metric("Episodes", stability.get("n_episodes", "N/A"), help="Total number of distinct regime episodes detected in the data.")
 
     st.divider()
 
     # ── Timeline ─────────────────────────────────────────────────────────
     if not regimes.empty:
-        st.plotly_chart(_build_regime_timeline(regimes), use_container_width=True)
+        st.plotly_chart(_build_regime_timeline(regimes), width="stretch")
 
     # ── NAV overlay ──────────────────────────────────────────────────────
     nav_fig = _build_regime_nav_overlay(regimes, nav)
     if nav_fig:
-        st.plotly_chart(nav_fig, use_container_width=True)
+        st.plotly_chart(nav_fig, width="stretch")
 
     st.divider()
 
@@ -302,28 +302,28 @@ def render() -> None:
 
     with col_left:
         if not transition_matrix.empty:
-            st.plotly_chart(_build_transition_heatmap(transition_matrix), use_container_width=True)
+            st.plotly_chart(_build_transition_heatmap(transition_matrix), width="stretch")
 
     with col_right:
         if not durations.empty:
-            st.plotly_chart(_build_duration_chart(durations), use_container_width=True)
+            st.plotly_chart(_build_duration_chart(durations), width="stretch")
 
     st.divider()
 
     # ── Crisis alignment table ───────────────────────────────────────────
-    st.subheader("Crisis Alignment")
+    st.subheader("Crisis Alignment", help="Compares detected panic regimes against known historical crises. High overlap = model correctly identifies real stress events.")
     from regimes.evaluation import evaluate_crisis_alignment
     crisis_df = evaluate_crisis_alignment(regimes)
     if not crisis_df.empty:
-        st.dataframe(crisis_df, use_container_width=True, hide_index=True)
+        st.dataframe(crisis_df, width="stretch", hide_index=True)
     else:
         st.info("No crisis data within date range.")
 
     # ── Regime features (expandable) ─────────────────────────────────────
     with st.expander("Regime Features (raw)", expanded=False):
         if not features.empty:
-            st.dataframe(features.tail(20), use_container_width=True, hide_index=True)
+            st.dataframe(features.tail(20), width="stretch", hide_index=True)
 
     with st.expander("Transition Matrix (raw)", expanded=False):
         if not transition_matrix.empty:
-            st.dataframe(transition_matrix, use_container_width=True)
+            st.dataframe(transition_matrix, width="stretch")

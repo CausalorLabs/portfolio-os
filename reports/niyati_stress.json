@@ -1,0 +1,57 @@
+{
+  "system_allocations": [
+    {
+      "name": "IN_equity",
+      "tau_star": 0.05,
+      "kappa_base": 0.7021,
+      "attack_budget_assigned": 0.025000000100000003,
+      "kappa_with_attack": 1.202100002,
+      "survives": false
+    },
+    {
+      "name": "US_equity",
+      "tau_star": 0.05,
+      "kappa_base": 0.95,
+      "attack_budget_assigned": 0.025000000100000003,
+      "kappa_with_attack": 1.450000002,
+      "survives": false
+    },
+    {
+      "name": "ETF",
+      "tau_star": 0.05,
+      "kappa_base": 0.4928,
+      "attack_budget_assigned": 0.025000000100000003,
+      "kappa_with_attack": 0.9928000020000001,
+      "survives": false
+    },
+    {
+      "name": "MF",
+      "tau_star": 0.05,
+      "kappa_base": 0.4435,
+      "attack_budget_assigned": 0.025000000100000003,
+      "kappa_with_attack": 0.9435000020000001,
+      "survives": false
+    },
+    {
+      "name": "metal",
+      "tau_star": 0.05,
+      "kappa_base": 0.804,
+      "attack_budget_assigned": 0.025000000100000003,
+      "kappa_with_attack": 1.304000002,
+      "survives": false
+    },
+    {
+      "name": "fixed_income",
+      "tau_star": 0.95,
+      "kappa_base": 0.05,
+      "attack_budget_assigned": 0.1749999995,
+      "kappa_with_attack": 0.2342105257894737,
+      "survives": true
+    }
+  ],
+  "collapsed_count": 5,
+  "total_kappa_post_attack": 6.126610535789473,
+  "pi_unified": 0.39999999999999997,
+  "attacker_budget_used": 0.3,
+  "attacker_budget_remaining": 0.0
+}

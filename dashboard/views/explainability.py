@@ -21,7 +21,7 @@ import plotly.express as px
 
 def render():
     """Render the Explainability & Monitoring dashboard."""
-    st.header("🔍 Explainability & Monitoring")
+    st.header("🔍 Explainability & Monitoring", help="Full observability into the portfolio system — performance attribution, decision logs, alerts, system health, anomalies, and audit trail.")
     st.caption("Attribution, decisions, alerts, and operational health")
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -32,7 +32,7 @@ def render():
     # ── Attribution Tab ──────────────────────────────────────────────────
 
     with tab1:
-        st.subheader("Performance Attribution")
+        st.subheader("Performance Attribution", help="Decomposes portfolio return into asset-level contributions. Shows which holdings drove gains or losses.")
 
         # Attribution breakdown bar chart
         col1, col2 = st.columns(2)
@@ -62,7 +62,7 @@ def render():
                         yaxis_tickformat=".2%",
                         height=350,
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     st.info("No attribution data available. Run the attribution pipeline first.")
             except Exception:
@@ -80,7 +80,7 @@ def render():
                         title="Factor Exposure & Contribution",
                         height=350,
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     st.info("No factor exposure data available.")
             except Exception:
@@ -89,7 +89,7 @@ def render():
     # ── Decisions Tab ────────────────────────────────────────────────────
 
     with tab2:
-        st.subheader("Decision Timeline")
+        st.subheader("Decision Timeline", help="Chronological log of every trade and no-trade decision made by the execution engine, with rationale and confidence scores.")
         st.markdown("Every portfolio decision with full reasoning.")
 
         try:
@@ -100,11 +100,11 @@ def render():
                 col1, col2, col3 = st.columns(3)
                 action_counts = journal_df["action"].value_counts()
                 with col1:
-                    st.metric("Total Decisions", len(journal_df))
+                    st.metric("Total Decisions", len(journal_df), help="Total number of trade/no-trade decisions logged by the execution engine.")
                 with col2:
-                    st.metric("Trades", action_counts.get("trade", 0))
+                    st.metric("Trades", action_counts.get("trade", 0), help="Number of times the engine decided to execute a trade.")
                 with col3:
-                    st.metric("Skipped", action_counts.get("no_trade", 0))
+                    st.metric("Skipped", action_counts.get("no_trade", 0), help="Number of times the engine skipped trading because cost exceeded expected utility.")
 
                 # Decision pie
                 fig = px.pie(
@@ -113,7 +113,7 @@ def render():
                     title="Decision Distribution",
                     height=300,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Recent decisions table
                 st.markdown("#### Recent Decisions")
@@ -123,7 +123,7 @@ def render():
                 ] if c in journal_df.columns]
                 st.dataframe(
                     journal_df[display_cols].tail(20).sort_index(ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                     height=400,
                 )
             else:
@@ -134,7 +134,7 @@ def render():
     # ── Alerts Tab ───────────────────────────────────────────────────────
 
     with tab3:
-        st.subheader("Alert Console")
+        st.subheader("Alert Console", help="Active monitoring alerts from the pipeline. Grouped by severity (CRITICAL, WARNING, INFO) and category (data quality, risk, execution).")
 
         try:
             wh = get_warehouse()
@@ -143,16 +143,16 @@ def render():
                 # Alert summary metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Total Alerts", len(alerts_df))
+                    st.metric("Total Alerts", len(alerts_df), help="Total number of monitoring alerts generated across all categories.")
                 with col2:
                     critical = len(alerts_df[alerts_df["severity"] == "CRITICAL"])
-                    st.metric("Critical", critical)
+                    st.metric("Critical", critical, help="Alerts requiring immediate attention — data gaps, risk limit breaches, or execution failures.")
                 with col3:
                     warning = len(alerts_df[alerts_df["severity"] == "WARNING"])
-                    st.metric("Warning", warning)
+                    st.metric("Warning", warning, help="Non-critical alerts that may need review — drift warnings, stale data, elevated volatility.")
                 with col4:
                     unack = len(alerts_df[~alerts_df.get("acknowledged", False)])
-                    st.metric("Unacknowledged", unack)
+                    st.metric("Unacknowledged", unack, help="Alerts not yet reviewed or acknowledged by the operator.")
 
                 # Alerts by category
                 fig = px.histogram(
@@ -165,12 +165,12 @@ def render():
                     },
                     height=300,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Alert table
                 st.dataframe(
                     alerts_df.tail(30).sort_index(ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                     height=400,
                 )
             else:
@@ -181,7 +181,7 @@ def render():
     # ── System Health Tab ────────────────────────────────────────────────
 
     with tab4:
-        st.subheader("System Health")
+        st.subheader("System Health", help="Pipeline infrastructure status — CPU, memory, database connections, and component-level health indicators.")
 
         try:
             wh = get_warehouse()
@@ -204,11 +204,11 @@ def render():
 
         # Model health
         st.markdown("---")
-        st.subheader("Model Health")
+        st.subheader("Model Health", help="ML model monitoring — feature drift, prediction stability, and model staleness indicators.")
         try:
             model_df = wh.read_table("model_health")
             if model_df is not None and not model_df.empty:
-                st.dataframe(model_df, use_container_width=True)
+                st.dataframe(model_df, width="stretch")
             else:
                 st.info("Model health data not available.")
         except Exception:
@@ -217,7 +217,7 @@ def render():
     # ── Anomalies Tab ────────────────────────────────────────────────────
 
     with tab5:
-        st.subheader("Anomaly Detection")
+        st.subheader("Anomaly Detection", help="Statistical anomalies detected in portfolio data — z-score outliers in returns, volumes, or risk metrics.")
 
         try:
             wh = get_warehouse()
@@ -225,10 +225,10 @@ def render():
             if anomaly_df is not None and not anomaly_df.empty:
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Total Anomalies", len(anomaly_df))
+                    st.metric("Total Anomalies", len(anomaly_df), help="Count of statistical anomalies detected across all monitored metrics.")
                 with col2:
                     critical = len(anomaly_df[anomaly_df["severity"] == "CRITICAL"])
-                    st.metric("Critical", critical)
+                    st.metric("Critical", critical, help="High-severity anomalies (z-score > 3) that may indicate data corruption or extreme market events.")
 
                 fig = px.scatter(
                     anomaly_df, x="timestamp", y="zscore",
@@ -237,11 +237,11 @@ def render():
                     title="Anomaly Timeline",
                     height=350,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 st.dataframe(
                     anomaly_df.tail(20).sort_index(ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                 )
             else:
                 st.success("No anomalies detected.")
@@ -251,7 +251,7 @@ def render():
     # ── Audit Trail Tab ──────────────────────────────────────────────────
 
     with tab6:
-        st.subheader("Audit Trail & Traceability")
+        st.subheader("Audit Trail & Traceability", help="Immutable log of every pipeline action — data loads, model runs, trade decisions. Supports regulatory and debugging needs.")
 
         try:
             wh = get_warehouse()
@@ -263,12 +263,12 @@ def render():
                     title="Events by Type & Component",
                     height=300,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 st.markdown("#### Recent Events")
                 st.dataframe(
                     audit_df.tail(30).sort_index(ascending=False),
-                    use_container_width=True,
+                    width="stretch",
                     height=400,
                 )
             else:

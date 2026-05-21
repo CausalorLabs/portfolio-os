@@ -20,7 +20,7 @@ from dashboard.utils.exporters import export_section
 
 
 def render() -> None:
-    st.header("Risk Analytics")
+    st.header("Risk Analytics", help="Deep-dive into portfolio risk: rolling volatility, Sharpe ratio, drawdown history, correlation structure, and concentration analysis.")
 
     rolling = load_rolling_analytics()
     dd = load_drawdown_series()
@@ -34,17 +34,17 @@ def render() -> None:
     if not metrics_df.empty:
         m = metrics_df.iloc[0]
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Ann. Vol", fmt_pct(m.get("annualized_volatility", 0)))
-        c2.metric("Skewness", fmt_number(m.get("skewness", 0)))
-        c3.metric("Kurtosis", fmt_number(m.get("kurtosis", 0)))
-        c4.metric("Calmar", fmt_number(m.get("calmar_ratio", 0)))
-        c5.metric("Max DD", fmt_pct(m.get("max_drawdown", 0)))
+        c1.metric("Ann. Vol", fmt_pct(m.get("annualized_volatility", 0)), help="Annualized standard deviation of daily returns. Measures overall portfolio risk.")
+        c2.metric("Skewness", fmt_number(m.get("skewness", 0)), help="Asymmetry of return distribution. Negative skew means larger left-tail (crash) risk.")
+        c3.metric("Kurtosis", fmt_number(m.get("kurtosis", 0)), help="Tail heaviness. Excess kurtosis >3 means more extreme events than a normal distribution.")
+        c4.metric("Calmar", fmt_number(m.get("calmar_ratio", 0)), help="CAGR divided by max drawdown. Measures return per unit of worst-case risk. Higher is better.")
+        c5.metric("Max DD", fmt_pct(m.get("max_drawdown", 0)), help="Maximum peak-to-trough decline observed in portfolio history.")
 
     st.divider()
 
     # ── Rolling volatility ───────────────────────────────────────────────
     # Actual column names: rolling_20d_vol, rolling_60d_vol
-    st.subheader("Rolling Volatility")
+    st.subheader("Rolling Volatility", help="Annualized volatility computed over sliding 20-day and 60-day windows. Shows how portfolio risk evolves over time.")
     fig_vol = go.Figure()
     if "rolling_20d_vol" in rolling.columns:
         fig_vol.add_trace(go.Scatter(
@@ -67,7 +67,7 @@ def render() -> None:
     left, right = st.columns(2)
 
     with left:
-        st.subheader("Rolling Sharpe (60D)")
+        st.subheader("Rolling Sharpe (60D)", help="Risk-adjusted return computed over a rolling 60-day window. Values above 0 indicate positive risk-adjusted returns.")
         if "rolling_60d_sharpe" in rolling.columns:
             fig_sharpe = go.Figure()
             fig_sharpe.add_trace(go.Scatter(
@@ -84,7 +84,7 @@ def render() -> None:
             st.plotly_chart(fig_sharpe, width="stretch")
 
     with right:
-        st.subheader("Drawdown History")
+        st.subheader("Drawdown History", help="Historical peak-to-trough declines. Deeper troughs indicate larger losses from previous highs.")
         if not dd.empty:
             fig_dd = go.Figure()
             fig_dd.add_trace(go.Scatter(
@@ -101,7 +101,7 @@ def render() -> None:
 
     # ── Correlation heatmap ──────────────────────────────────────────────
     st.divider()
-    st.subheader("Asset Correlation Matrix")
+    st.subheader("Asset Correlation Matrix", help="Pairwise correlation between all held assets. Low correlation means better diversification. Blue = negative correlation (hedging).")
 
     inr = load_inr_prices()
     equity_prices = inr[~inr["ticker"].str.contains("=X")]
@@ -128,7 +128,7 @@ def render() -> None:
         st.plotly_chart(fig_corr, width="stretch")
 
         # ── Diversification map ──────────────────────────────────────────
-        st.subheader("Diversification Map")
+        st.subheader("Diversification Map", help="Average correlation of each asset with all others. Green (<0.5) = good diversifier, red (>0.75) = highly correlated.")
         st.caption("Lower correlation = better diversification benefit")
         avg_corr = corr.mean()
         fig_div = go.Figure()
@@ -150,7 +150,7 @@ def render() -> None:
 
     # ── Concentration analysis ───────────────────────────────────────────
     st.divider()
-    st.subheader("Concentration Analysis")
+    st.subheader("Concentration Analysis", help="Measures how concentrated the portfolio is. HHI near 0 = well diversified, near 1 = concentrated in one asset.")
 
     holdings = load_holdings()
     if not holdings.empty:
@@ -173,9 +173,9 @@ def render() -> None:
         left, right = st.columns(2)
         with left:
             c1, c2, c3 = st.columns(3)
-            c1.metric("HHI", f"{hhi:.4f}")
-            c2.metric("Effective N", f"{effective_n:.1f}")
-            c3.metric("Top-1 Weight", f"{weights.max():.1%}")
+            c1.metric("HHI", f"{hhi:.4f}", help="Herfindahl-Hirschman Index: sum of squared weights. Lower = more diversified.")
+            c2.metric("Effective N", f"{effective_n:.1f}", help="Number of equally-weighted positions that would produce the same HHI. Closer to actual N = better.")
+            c3.metric("Top-1 Weight", f"{weights.max():.1%}", help="Weight of the single largest position. High values indicate concentration risk.")
 
             # Top holdings bar
             val_df_sorted = val_df.sort_values("weight", ascending=True)
@@ -223,7 +223,7 @@ def render() -> None:
     # ── Rolling beta ─────────────────────────────────────────────────────
     if "rolling_60d_beta" in rolling.columns:
         st.divider()
-        st.subheader("Rolling Beta vs SPY (60D)")
+        st.subheader("Rolling Beta vs SPY (60D)", help="Portfolio sensitivity to SPY over a 60-day window. Beta >1 = more volatile than market, <1 = less volatile.")
         fig_beta = go.Figure()
         fig_beta.add_trace(go.Scatter(
             x=rolling["date"], y=rolling["rolling_60d_beta"],

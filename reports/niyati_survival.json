@@ -1,0 +1,21 @@
+{
+  "epsilon_star": 0.006000000000000003,
+  "survival_margin": 2.6020852139652106e-18,
+  "survival_verdict": "critical",
+  "solo_optionality": 6,
+  "solo_goal_omega": 4,
+  "stressed_optionality": 3,
+  "stressed_goal_omega": 1,
+  "kappa_base": 0.6931471805599453,
+  "kappa_under_attack": 1.693147180559945,
+  "adversarial_premium": 0.9999999999999996,
+  "sequential_stress_index": 2.442695040888963,
+  "pi_trajectory": 0.006,
+  "pi_regime": "inevitable_collapse",
+  "recommended_path": [
+    "s0640_d0194",
+    "s0760_d0172",
+    "s0880_d0150"
+  ],
+  "budget_fraction_at_risk": 0.6
+}

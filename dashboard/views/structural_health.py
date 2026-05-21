@@ -244,7 +244,7 @@ def _build_adversarial_chart(adv_result: dict) -> go.Figure | None:
 
 
 def render() -> None:
-    st.header("Structural Health")
+    st.header("Structural Health", help="Niyati feasibility engine — analyzes whether the portfolio's structural runway is viable. Checks survival under adversarial stress, fragility, and collapse risk.")
     st.caption("Niyati feasibility engine — structural runway & adversarial stress analysis")
 
     with st.spinner("Running structural analysis via Niyati API…"):
@@ -296,6 +296,7 @@ def render() -> None:
     c1.metric(
         "Runway Verdict",
         f"{verdict_emoji} {verdict}",
+        help="Overall structural survival verdict: SURVIVES = feasible over horizon, COLLAPSES = structural failure detected.",
     )
     c2.metric(
         "Epsilon Star (ε*)",
@@ -380,14 +381,14 @@ def render() -> None:
     with col_left:
         timeline_fig = _build_timeline_chart(timeline)
         if timeline_fig:
-            st.plotly_chart(timeline_fig, use_container_width=True)
+            st.plotly_chart(timeline_fig, width="stretch")
         else:
             st.info("Timeline data not available in API response.")
 
     with col_right:
         phase_fig = _build_phase_chart(phase_distribution)
         if phase_fig:
-            st.plotly_chart(phase_fig, use_container_width=True)
+            st.plotly_chart(phase_fig, width="stretch")
         else:
             st.info("Phase distribution data not available.")
 
@@ -402,7 +403,7 @@ def render() -> None:
         if not decisions_df.empty:
             st.dataframe(
                 decisions_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
         else:
@@ -413,7 +414,7 @@ def render() -> None:
         if adv_result:
             adv_fig = _build_adversarial_chart(adv_result)
             if adv_fig:
-                st.plotly_chart(adv_fig, use_container_width=True)
+                st.plotly_chart(adv_fig, width="stretch")
             else:
                 # Show raw summary if chart data not available
                 # Find first system to collapse

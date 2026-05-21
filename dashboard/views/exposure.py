@@ -16,7 +16,7 @@ from dashboard.utils.formatters import fmt_pct_plain, fmt_currency
 
 
 def render() -> None:
-    st.header("Exposure Explorer")
+    st.header("Exposure Explorer", help="Analyze portfolio concentration by country, currency, and asset class. Understand geographic and currency risk.")
 
     holdings = load_holdings()
     master = load_asset_master()
@@ -51,7 +51,7 @@ def render() -> None:
     c1, c2, c3 = st.columns(3)
 
     with c1:
-        st.subheader("Country")
+        st.subheader("Country", help="Portfolio weight allocation by country of domicile. Shows geographic concentration risk.")
         country = merged.groupby("country")["weight_pct"].sum().reset_index()
         fig = px.pie(
             country, values="weight_pct", names="country",
@@ -65,7 +65,7 @@ def render() -> None:
         st.plotly_chart(fig, width="stretch")
 
     with c2:
-        st.subheader("Currency")
+        st.subheader("Currency", help="Portfolio exposure by trading currency. USD positions carry INR/USD exchange rate risk.")
         currency = merged.groupby("currency")["weight_pct"].sum().reset_index()
         fig = px.pie(
             currency, values="weight_pct", names="currency",
@@ -79,7 +79,7 @@ def render() -> None:
         st.plotly_chart(fig, width="stretch")
 
     with c3:
-        st.subheader("Asset Class")
+        st.subheader("Asset Class", help="Breakdown by asset type: equities, ETFs, mutual funds, fixed income, metals. Diversification across classes reduces risk.")
         asset_class = merged.groupby("asset_type")["weight_pct"].sum().reset_index()
         fig = px.pie(
             asset_class, values="weight_pct", names="asset_type",
@@ -94,7 +94,7 @@ def render() -> None:
 
     # ── Position detail table ────────────────────────────────────────────
     st.divider()
-    st.subheader("Position Details")
+    st.subheader("Position Details", help="Complete list of holdings with current market value in INR and percentage weight in the portfolio.")
 
     display = merged[["ticker", "asset_name", "quantity", "avg_buy_price",
                        "currency", "country", "asset_type", "position_value", "weight_pct"]].copy()
@@ -106,7 +106,7 @@ def render() -> None:
 
     # ── FX attribution ───────────────────────────────────────────────────
     st.divider()
-    st.subheader("FX Impact")
+    st.subheader("FX Impact", help="For USD-denominated assets: how much of the return came from the asset itself vs. INR/USD exchange rate movement.")
     fx = load_fx_attribution()
     if not fx.empty:
         usd_tickers = master[master["currency"] == "USD"]["ticker"].tolist()
@@ -126,17 +126,17 @@ def render() -> None:
     st.divider()
     left, right = st.columns(2)
     with left:
-        st.subheader("Concentration")
+        st.subheader("Concentration", help="Portfolio concentration metrics. HHI and Effective N measure how spread out the portfolio is across holdings.")
         weights = merged["weight_pct"].values / 100
         hhi = (weights ** 2).sum()
         effective_n = 1 / hhi if hhi > 0 else 0
         top1 = weights.max() * 100
-        st.metric("HHI", f"{hhi:.4f}")
-        st.metric("Effective N", f"{effective_n:.1f}")
-        st.metric("Top-1 Weight", f"{top1:.1f}%")
+        st.metric("HHI", f"{hhi:.4f}", help="Herfindahl-Hirschman Index: sum of squared weights. Range 0–1, lower = more diversified.")
+        st.metric("Effective N", f"{effective_n:.1f}", help="Equivalent number of equal-weight positions. Closer to actual holding count = better diversified.")
+        st.metric("Top-1 Weight", f"{top1:.1f}%", help="Weight of the largest single position. High values indicate concentration risk.")
 
     with right:
-        st.subheader("Weight Distribution")
+        st.subheader("Weight Distribution", help="Visual breakdown of portfolio weight for each held asset. Taller bars = larger positions.")
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
             x=merged["ticker"],

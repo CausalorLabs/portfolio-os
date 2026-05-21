@@ -150,7 +150,7 @@ def _build_decision_pie(journal: pd.DataFrame) -> go.Figure:
 
 def render():
     """Render the Execution Intelligence dashboard view."""
-    st.header("⚡ Execution Intelligence")
+    st.header("⚡ Execution Intelligence", help="Utility-gated execution engine — monitors paper trading performance, trade/skip decisions, friction costs, and turnover control.")
     st.caption("Utility-gated execution, paper trading, and turnover control")
 
     paper = _load_paper_portfolio()
@@ -160,27 +160,27 @@ def render():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("State", "Idle", "🟢")
+        st.metric("State", "Idle", "🟢", help="Current execution engine state. Idle = no pending trades, Active = trades in progress.")
     with col2:
         if not paper.empty:
             last = paper.iloc[-1]
-            st.metric("Paper NAV", f"₹{last['nav']:,.0f}")
+            st.metric("Paper NAV", f"₹{last['nav']:,.0f}", help="Latest net asset value of the paper (simulated) portfolio. Tracks what would happen if all recommended trades were executed.")
         else:
-            st.metric("Paper NAV", "—")
+            st.metric("Paper NAV", "—", help="Paper portfolio NAV not yet available. Run the execution engine first.")
     with col3:
         if not journal.empty:
             n_trade = (journal["action"] == "trade").sum()
             n_total = len(journal)
             skip_rate = 1 - n_trade / max(n_total, 1)
-            st.metric("Skip Rate", f"{skip_rate:.0%}")
+            st.metric("Skip Rate", f"{skip_rate:.0%}", help="Fraction of rebalance cycles where the engine chose NOT to trade (cost exceeded expected utility). High skip rate = conservative, low friction.")
         else:
-            st.metric("Skip Rate", "—")
+            st.metric("Skip Rate", "—", help="Trade skip rate not available yet. Run the execution engine to populate.")
     with col4:
         if not paper.empty:
             total_friction = paper.iloc[-1]["total_costs"] + paper.iloc[-1]["total_taxes"]
-            st.metric("Total Friction", f"₹{total_friction:,.0f}")
+            st.metric("Total Friction", f"₹{total_friction:,.0f}", help="Cumulative transaction costs + taxes incurred in paper trading. Lower = more efficient execution.")
         else:
-            st.metric("Total Friction", "—")
+            st.metric("Total Friction", "—", help="Total friction cost not available. Run the execution engine to populate.")
 
     st.divider()
 
@@ -189,18 +189,18 @@ def render():
         col_left, col_right = st.columns([3, 2])
 
         with col_left:
-            st.plotly_chart(_build_nav_chart(paper), use_container_width=True)
-            st.plotly_chart(_build_friction_chart(paper), use_container_width=True)
+            st.plotly_chart(_build_nav_chart(paper), width="stretch")
+            st.plotly_chart(_build_friction_chart(paper), width="stretch")
 
         with col_right:
-            st.plotly_chart(_build_turnover_chart(paper), use_container_width=True)
+            st.plotly_chart(_build_turnover_chart(paper), width="stretch")
             if not journal.empty:
-                st.plotly_chart(_build_decision_pie(journal), use_container_width=True)
+                st.plotly_chart(_build_decision_pie(journal), width="stretch")
 
         st.divider()
 
     # ── Decision Journal ─────────────────────────────────────────────────
-    st.subheader("Decision Journal")
+    st.subheader("Decision Journal", help="Log of every trade and no-trade decision with timestamp, trigger, expected utility, cost estimate, and human-readable rationale.")
 
     if not journal.empty:
         display_cols = [
@@ -210,7 +210,7 @@ def render():
         ]
         st.dataframe(
             journal[display_cols].tail(20).sort_values("timestamp", ascending=False),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
     else:
@@ -223,7 +223,7 @@ def render():
 
     # ── Paper Portfolio Detail ───────────────────────────────────────────
     if not paper.empty:
-        st.subheader("Paper Portfolio History")
+        st.subheader("Paper Portfolio History", help="Time-series of paper portfolio state: cash, market value, NAV, cumulative costs and taxes. Verifies execution logic before going live.")
         st.dataframe(
             paper.tail(20).style.format({
                 "cash": "₹{:,.0f}",
@@ -235,6 +235,6 @@ def render():
                 "total_costs": "₹{:,.0f}",
                 "total_taxes": "₹{:,.0f}",
             }),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )

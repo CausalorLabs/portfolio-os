@@ -67,7 +67,7 @@ def _load_risk_data() -> dict:
 @st.cache_data(ttl=600, show_spinner=False)
 def _load_returns() -> pd.DataFrame:
     """Load returns for live computation."""
-    path = PROCESSED / "daily_inr_prices.parquet"
+    path = PROCESSED / "inr_prices.parquet"
     if path.exists():
         prices = pd.read_parquet(path)
         prices["date"] = pd.to_datetime(prices["date"])
@@ -188,7 +188,7 @@ def _build_stress_table(scenarios: list[dict]) -> pd.DataFrame:
 
 def render():
     """Render the Risk Intelligence dashboard view."""
-    st.header("🛡️ Risk Intelligence")
+    st.header("🛡️ Risk Intelligence", help="Dynamic risk monitoring dashboard — tracks volatility, correlations, tail risk (CVaR), risk budgeting, and stress scenarios in real time.")
     st.caption("Dynamic risk monitoring, stress testing, and risk-aware allocation")
 
     risk_data = _load_risk_data()
@@ -206,18 +206,18 @@ def render():
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             vol_color = "🟢" if port_vol < 0.15 else "🟡" if port_vol < 0.25 else "🔴"
-            st.metric("Portfolio Vol (EWMA)", f"{port_vol:.1%}", vol_color)
+            st.metric("Portfolio Vol (EWMA)", f"{port_vol:.1%}", vol_color, help="Exponentially weighted moving average volatility (60-day span). Gives more weight to recent data than simple std dev.")
         with col2:
-            st.metric("Vol Scale Factor", f"{scaling:.2f}")
+            st.metric("Vol Scale Factor", f"{scaling:.2f}", help="Risk-scaling multiplier for position sizing. <1.0 means the system recommends reducing exposure due to elevated volatility.")
         with col3:
             cash = max(0, 1 - scaling)
-            st.metric("Implied Cash", f"{cash:.1%}")
+            st.metric("Implied Cash", f"{cash:.1%}", help="How much of the portfolio should be in cash to match the target risk level. Higher in volatile markets.")
         with col4:
             if not returns.empty:
                 avg_corr = returns.iloc[-20:].corr().values
                 mask = np.triu(np.ones(avg_corr.shape, dtype=bool), k=1)
                 upper = avg_corr[mask]
-                st.metric("Avg Correlation (20d)", f"{np.mean(upper):.2f}")
+                st.metric("Avg Correlation (20d)", f"{np.mean(upper):.2f}", help="Average pairwise correlation over the last 20 trading days. Rising correlation means diversification benefit is shrinking.")
 
     st.divider()
 
@@ -228,32 +228,32 @@ def render():
         # Volatility chart
         vol_state = risk_data.get("vol_state")
         if vol_state is not None and not vol_state.empty:
-            st.plotly_chart(_build_rolling_vol_chart(vol_state), use_container_width=True)
+            st.plotly_chart(_build_rolling_vol_chart(vol_state), width="stretch")
         elif not returns.empty:
-            st.subheader("Rolling Volatility")
+            st.subheader("Rolling Volatility", help="Time-series of annualized volatility for each asset. Spikes indicate stress periods or regime changes.")
             from risk_engine.volatility import compute_ewma_volatility
             ewma_full = compute_ewma_volatility(returns, 60)
             df_plot = ewma_full.tail(252).stack().reset_index()
             df_plot.columns = ["date", "ticker", "ewma_vol"]
             st.plotly_chart(
                 _build_rolling_vol_chart(df_plot),
-                use_container_width=True,
+                width="stretch",
             )
 
         # Correlation rolling
         corr_data = risk_data.get("corr_rolling")
         if corr_data is not None and not corr_data.empty:
-            st.plotly_chart(_build_rolling_corr_chart(corr_data), use_container_width=True)
+            st.plotly_chart(_build_rolling_corr_chart(corr_data), width="stretch")
 
     with col_right:
         # Correlation heatmap
         if not returns.empty:
-            st.plotly_chart(_build_correlation_heatmap(returns), use_container_width=True)
+            st.plotly_chart(_build_correlation_heatmap(returns), width="stretch")
 
     st.divider()
 
     # ── Tail Risk Section ────────────────────────────────────────────────
-    st.subheader("Tail Risk")
+    st.subheader("Tail Risk", help="Conditional Value at Risk (CVaR) — the average loss in the worst 5% of scenarios. More informative than VaR for measuring extreme risk.")
 
     if not returns.empty:
         from risk_engine.tail_risk import compute_cvar, compute_semivariance
@@ -272,17 +272,17 @@ def render():
                 st.dataframe(tail_df.style.format({
                     "CVaR (95%)": "{:.2%}",
                     "Semivariance": "{:.4f}",
-                }), hide_index=True, use_container_width=True)
+                }), hide_index=True, width="stretch")
 
         with col2:
             port_returns = returns.mean(axis=1)
             port_cvar = compute_cvar(port_returns)
-            st.metric("Portfolio CVaR (95%)", f"{port_cvar:.2%}" if not np.isnan(port_cvar) else "N/A")
+            st.metric("Portfolio CVaR (95%)", f"{port_cvar:.2%}" if not np.isnan(port_cvar) else "N/A", help="Expected daily loss when the portfolio is in its worst 5% of days. Negative values indicate loss.")
 
     st.divider()
 
     # ── Risk Budget Section ──────────────────────────────────────────────
-    st.subheader("Risk Budget")
+    st.subheader("Risk Budget", help="Marginal risk contribution per asset — shows which holdings consume the most risk budget. Use this to balance risk across positions.")
 
     if not returns.empty:
         from risk_engine.covariance import compute_regime_covariance
@@ -297,7 +297,7 @@ def render():
         with col1:
             st.plotly_chart(
                 _build_risk_contribution_chart(risk_pct.to_dict()),
-                use_container_width=True,
+                width="stretch",
             )
         with col2:
             budget_df = pd.DataFrame({
@@ -310,12 +310,12 @@ def render():
                 "weight": "{:.1%}",
                 "risk_contribution": "{:.1%}",
                 "ratio": "{:.2f}x",
-            }), hide_index=True, use_container_width=True)
+            }), hide_index=True, width="stretch")
 
     st.divider()
 
     # ── Stress Test Results ──────────────────────────────────────────────
-    st.subheader("Stress Testing")
+    st.subheader("Stress Testing", help="Scenario analysis under adverse market conditions (e.g., liquidity crisis, rate shock). Shows estimated portfolio impact.")
     st.caption("Impact on current portfolio under historical and synthetic scenarios")
 
     # Placeholder for stress test results (computed by pipeline)

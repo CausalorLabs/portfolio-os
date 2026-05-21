@@ -17,7 +17,7 @@ from dashboard.utils.formatters import fmt_currency, fmt_pct
 
 
 def render() -> None:
-    st.header("Portfolio Recommendations")
+    st.header("Portfolio Recommendations", help="Actionable rebalance suggestions with trade-level detail, signal-driven rationale, and estimated transaction costs.")
 
     rec = load_portfolio_recommendation()
     target = load_target_weights()
@@ -28,7 +28,7 @@ def render() -> None:
         return
 
     # ── Rebalance summary ────────────────────────────────────────────────
-    st.subheader("Rebalance Summary")
+    st.subheader("Rebalance Summary", help="Key metrics for the proposed rebalance: expected turnover, number of buy/sell orders, and current portfolio value.")
 
     total_turnover = rec["weight_change"].abs().sum() / 2
     buys = rec[rec["action"] == "BUY"]
@@ -36,14 +36,14 @@ def render() -> None:
     portfolio_value = nav.iloc[-1]["portfolio_nav"] if not nav.empty else 0
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Est. Turnover", fmt_pct(total_turnover))
-    c2.metric("Buy Orders", len(buys))
-    c3.metric("Sell Orders", len(sells))
-    c4.metric("Portfolio Value", fmt_currency(portfolio_value))
+    c1.metric("Est. Turnover", fmt_pct(total_turnover), help="One-way portfolio turnover — what fraction of the portfolio needs to change. Lower = fewer trades needed.")
+    c2.metric("Buy Orders", len(buys), help="Number of positions where the optimizer recommends increasing weight.")
+    c3.metric("Sell Orders", len(sells), help="Number of positions where the optimizer recommends reducing weight.")
+    c4.metric("Portfolio Value", fmt_currency(portfolio_value), help="Total current portfolio value in INR, used to estimate trade amounts.")
 
     # ── Trade table ──────────────────────────────────────────────────────
     st.divider()
-    st.subheader("Suggested Trades")
+    st.subheader("Suggested Trades", help="Detailed trade list with current vs target weights, direction (BUY/SELL), and estimated rupee value of each trade.")
 
     display = rec.copy()
     display["current_weight"] = display["current_weight"].apply(lambda x: f"{x:.1%}")
@@ -62,7 +62,7 @@ def render() -> None:
 
     # ── Weight shift visualization ───────────────────────────────────────
     st.divider()
-    st.subheader("Weight Shift")
+    st.subheader("Weight Shift", help="Visual bar chart of weight changes. Green = increase (buy), red = decrease (sell). Taller bars = bigger rebalance moves.")
 
     fig = go.Figure()
     colors = ["#00d4aa" if x > 0 else "#ff6b6b" for x in rec["weight_change"]]
@@ -82,7 +82,7 @@ def render() -> None:
 
     # ── Recommendation explanations ──────────────────────────────────────
     st.divider()
-    st.subheader("Allocation Rationale")
+    st.subheader("Allocation Rationale", help="Signal-driven explanation for each trade: why the optimizer recommends buying or selling based on momentum, trend, and diversification.")
 
     scores = load_signal_scores()
     attribution = load_backtest_attribution()
@@ -128,7 +128,7 @@ def render() -> None:
 
     # ── Friction estimate ────────────────────────────────────────────────
     st.divider()
-    st.subheader("Estimated Rebalance Friction")
+    st.subheader("Estimated Rebalance Friction", help="Projected transaction costs for this rebalance: slippage (market impact), brokerage fees, and capital gains tax.")
 
     if not attribution.empty:
         attr = attribution.iloc[0]
@@ -136,9 +136,9 @@ def render() -> None:
         per_rebal_friction = attr.get("total_friction", 0) / max(n_rebal, 1)
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("Est. Slippage", fmt_currency(per_rebal_friction * 0.06))
-        c2.metric("Est. Costs", fmt_currency(per_rebal_friction * 0.15))
-        c3.metric("Est. Taxes", fmt_currency(per_rebal_friction * 0.79))
+        c1.metric("Est. Slippage", fmt_currency(per_rebal_friction * 0.06), help="Estimated market impact cost — the price movement caused by placing the order.")
+        c2.metric("Est. Costs", fmt_currency(per_rebal_friction * 0.15), help="Estimated brokerage commissions and exchange fees.")
+        c3.metric("Est. Taxes", fmt_currency(per_rebal_friction * 0.79), help="Estimated capital gains tax (short-term or long-term depending on holding period).")
 
         st.info(
             "💡 **Tax efficiency tip**: Taxes account for ~79% of total friction. "
