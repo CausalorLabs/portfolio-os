@@ -121,6 +121,7 @@ monitoring:
   drift_alert_threshold: 0.05
   drawdown_alert_threshold: -0.15
   concentration_hhi_alert: 0.25
+  config_file: "configs/monitoring.yaml"
 
 api:
   host: "0.0.0.0"

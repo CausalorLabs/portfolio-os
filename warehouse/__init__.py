@@ -52,6 +52,15 @@ _TABLE_REGISTRY: dict[str, str] = {
     # Execution engine tables (Sprint 5)
     "paper_portfolio": "paper_portfolio.parquet",
     "execution_journal": "execution_journal.parquet",
+    # Monitoring & Attribution tables (Sprint 6)
+    "attribution_summary": "attribution_summary.parquet",
+    "factor_exposures": "factor_exposures.parquet",
+    "monitoring_alerts": "monitoring_alerts.parquet",
+    "anomaly_log": "anomaly_log.parquet",
+    "system_health": "system_health.parquet",
+    "model_health": "model_health.parquet",
+    "audit_trail": "audit_trail.parquet",
+    "decision_timeline": "decision_timeline.parquet",
 }
 
 

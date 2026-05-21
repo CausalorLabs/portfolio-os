@@ -1,0 +1,153 @@
+# Sprint 6 — Attribution, Explainability & Monitoring Configuration
+
+attribution:
+  # Performance attribution (Brinson-Hood-Beebower)
+  benchmark_ticker: "SPY"
+  benchmark_weight_field: "benchmark_weight"
+  sectors:
+    - technology
+    - financials
+    - healthcare
+    - consumer
+    - industrials
+    - energy
+    - materials
+    - utilities
+    - other
+  currency_pairs:
+    - USDINR
+
+  # Factor attribution
+  factors:
+    - market_beta
+    - momentum
+    - low_volatility
+    - quality
+    - size
+  factor_lookback_days: 252
+  factor_estimation_method: "ols"  # ols | rolling
+
+explainability:
+  # Decision explainability
+  shap_top_k: 5
+  min_weight_change_to_explain: 0.02  # 2% weight change triggers explanation
+  narrative_style: "professional"  # professional | concise | detailed
+
+  # Trade decision narratives
+  include_utility_breakdown: true
+  include_regime_context: true
+  include_risk_context: true
+
+alerts:
+  # Portfolio alerts
+  concentration_hhi_threshold: 0.25
+  max_single_position: 0.25
+  max_cash_pct: 0.20
+  min_cash_pct: 0.02
+  excessive_turnover_monthly: 0.30
+
+  # Risk alerts
+  vol_spike_threshold: 1.5        # vol / target_vol ratio
+  drawdown_warning: -0.10
+  drawdown_critical: -0.20
+  correlation_stress_threshold: 0.80
+  tail_risk_cvar_threshold: -0.05  # 5% CVaR threshold
+
+  # Regime alerts
+  regime_instability_window: 10    # days
+  regime_instability_changes: 3    # max transitions in window
+
+  # ML alerts
+  confidence_collapse_threshold: 0.3
+  ic_degradation_threshold: 0.02
+  feature_drift_zscore: 3.0
+  prediction_instability_cv: 0.50
+
+  # Operational alerts
+  stale_data_hours: 24
+  max_api_latency_ms: 5000
+  max_pipeline_failures: 3
+
+  # Severity escalation
+  severity_levels:
+    INFO: "informational"
+    WARNING: "attention_needed"
+    CRITICAL: "immediate_action"
+
+notifications:
+  # Channel configuration
+  enabled: false  # Set true when credentials configured
+  channels:
+    telegram:
+      enabled: false
+      bot_token_env: "TELEGRAM_BOT_TOKEN"
+      chat_id_env: "TELEGRAM_CHAT_ID"
+      min_severity: "WARNING"
+    slack:
+      enabled: false
+      webhook_url_env: "SLACK_WEBHOOK_URL"
+      channel: "#portfolio-alerts"
+      min_severity: "WARNING"
+    email:
+      enabled: false
+      smtp_host: "smtp.gmail.com"
+      smtp_port: 587
+      sender_env: "ALERT_EMAIL_SENDER"
+      password_env: "ALERT_EMAIL_PASSWORD"
+      recipients_env: "ALERT_EMAIL_RECIPIENTS"
+      min_severity: "CRITICAL"
+
+  # Rate limiting
+  cooldown_minutes: 15       # Min time between same alert type
+  max_alerts_per_hour: 20
+  digest_mode: false         # Batch alerts into periodic digests
+  digest_interval_minutes: 60
+
+observability:
+  # Pipeline health
+  pipeline_components:
+    - ingestion
+    - features
+    - ml_inference
+    - optimization
+    - risk_engine
+    - execution
+    - monitoring
+  health_check_interval_minutes: 5
+  stale_threshold_hours: 24
+
+  # Model health
+  rolling_ic_window: 60
+  min_acceptable_ic: 0.02
+  confidence_floor: 0.3
+
+  # System metrics
+  track_latency: true
+  track_memory: false
+
+anomaly_detection:
+  # Detection method
+  method: "zscore"  # zscore | isolation_forest
+  zscore_threshold: 3.0
+
+  # Portfolio anomalies
+  turnover_spike_zscore: 3.0
+  exposure_jump_threshold: 0.15  # 15% sudden exposure change
+  
+  # Model anomalies
+  prediction_instability_window: 10
+  feature_explosion_zscore: 5.0
+
+  # Execution anomalies
+  slippage_anomaly_mult: 3.0     # 3x expected slippage
+  execution_divergence_pct: 0.05  # 5% deviation from plan
+
+  lookback_window: 60  # days for baseline statistics
+
+audit:
+  # Traceability
+  enable_decision_ids: true
+  enable_event_lineage: true
+  lineage_depth: 5            # Max hops in lineage graph
+  retention_days: 365
+  export_format: "parquet"    # parquet | csv | json

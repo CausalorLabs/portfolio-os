@@ -370,3 +370,118 @@ class ExecutionJournalEntry(BaseModel):
     regime: str
     trigger: str
     n_trades: int = Field(ge=0)
+
+
+# ── Sprint 6 — Attribution, Explainability & Monitoring ──────────────────────
+
+
+class AttributionType(str, Enum):
+    ALLOCATION = "allocation"
+    SELECTION = "selection"
+    TIMING = "timing"
+    CURRENCY = "currency"
+    INTERACTION = "interaction"
+
+
+class AlertCategory(str, Enum):
+    PORTFOLIO = "portfolio"
+    RISK = "risk"
+    REGIME = "regime"
+    ML = "ml"
+    OPERATIONAL = "operational"
+
+
+class AlertSeverity(str, Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+class ComponentStatus(str, Enum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNHEALTHY = "unhealthy"
+    UNKNOWN = "unknown"
+
+
+class AttributionRecord(BaseModel):
+    """Performance attribution breakdown for a period."""
+    date: date
+    allocation_effect: float
+    selection_effect: float
+    timing_effect: float
+    currency_effect: float
+    interaction_effect: float
+    total_active_return: float
+
+
+class FactorExposure(BaseModel):
+    """Single factor exposure and contribution."""
+    date: date
+    factor: str
+    exposure: float
+    factor_return: float
+    contribution: float
+
+
+class AlertRecord(BaseModel):
+    """Unified alert record across all categories."""
+    timestamp: datetime
+    alert_id: str
+    category: AlertCategory
+    severity: AlertSeverity
+    title: str
+    message: str
+    metric_name: str
+    metric_value: float
+    threshold: float
+    acknowledged: bool = False
+    metadata: dict = Field(default_factory=dict)
+
+
+class DecisionExplanation(BaseModel):
+    """Explanation for a portfolio decision."""
+    timestamp: datetime
+    decision_id: str
+    decision_type: str  # rebalance | regime_shift | risk_adjustment
+    summary: str
+    drivers: list[str]
+    regime_context: str
+    risk_context: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class SystemHealthRecord(BaseModel):
+    """Health status of a system component."""
+    timestamp: datetime
+    component: str
+    status: ComponentStatus
+    latency_ms: float = Field(ge=0)
+    last_success: datetime | None = None
+    error_count: int = Field(ge=0, default=0)
+    message: str = ""
+
+
+class AnomalyRecord(BaseModel):
+    """Detected anomaly in portfolio or system behavior."""
+    timestamp: datetime
+    anomaly_id: str
+    category: str  # portfolio | model | execution
+    metric: str
+    observed_value: float
+    expected_value: float
+    zscore: float
+    severity: AlertSeverity
+    description: str
+
+
+class EventLineage(BaseModel):
+    """Traceability record linking inputs to decisions."""
+    timestamp: datetime
+    trace_id: str
+    parent_id: str | None = None
+    event_type: str  # ingestion | feature | prediction | optimization | execution
+    component: str
+    inputs: list[str] = Field(default_factory=list)
+    outputs: list[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
