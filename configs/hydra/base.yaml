@@ -80,6 +80,10 @@ ml_alpha:
   enabled: true
   config_file: configs/ml_alpha.yaml
 
+risk_engine:
+  enabled: true
+  config_file: configs/risk_engine.yaml
+
 backtesting:
   initial_capital: 1000000.0
   frequency: monthly  # monthly | quarterly

@@ -44,6 +44,11 @@ _TABLE_REGISTRY: dict[str, str] = {
     "monte_carlo_summary": "monte_carlo_summary.parquet",
     "stress_test_results": "stress_test_results.parquet",
     "fx_series": "fx_series.parquet",
+    # Risk engine tables (Sprint 4)
+    "volatility_state": "volatility_state.parquet",
+    "correlation_rolling": "correlation_rolling.parquet",
+    "crisis_clustering": "crisis_clustering.parquet",
+    "risk_budget": "risk_budget.parquet",
 }
 
 

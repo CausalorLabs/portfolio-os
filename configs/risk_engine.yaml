@@ -1,0 +1,105 @@
+# ── Dynamic Risk & Covariance Engine Configuration ──────────────────────────
+# Professional portfolio systems are risk systems first, return systems second.
+
+volatility:
+  ewma:
+    short_span: 20          # fast-reacting
+    medium_span: 60         # standard
+    long_span: 120          # slow baseline
+    default_span: 60
+  realized:
+    windows: [5, 20, 60]    # multi-horizon
+    annualization: 252
+  regime_thresholds:
+    normal_percentile: 0.60
+    elevated_percentile: 0.80
+    panic_percentile: 0.95
+
+covariance:
+  methods:
+    - shrinkage             # Ledoit-Wolf (default, stable)
+    - ewma                  # exponentially weighted (regime-adaptive)
+    - sample                # raw sample (baseline)
+  default_method: shrinkage
+  ewma_span: 60
+  min_observations: 60      # minimum days for stable estimation
+  regime_override:
+    risk_on: shrinkage
+    risk_off: shrinkage
+    panic: ewma
+    high_vol: ewma
+
+correlation:
+  rolling_window: 60
+  spike_threshold: 0.75     # avg pairwise corr above this = crisis clustering
+  diversification_threshold: 0.50  # below = healthy diversification
+
+tail_risk:
+  cvar_confidence: 0.95     # 95th percentile
+  semivariance_threshold: 0 # only negative returns
+  drawdown:
+    rolling_window: 252     # 1 year rolling
+    severity_levels:
+      mild: -0.05
+      moderate: -0.10
+      severe: -0.20
+      crisis: -0.30
+
+risk_budgeting:
+  target_risk_contribution: equal   # equal | proportional
+  max_risk_contribution: 0.40       # no asset > 40% of total risk
+  rebalance_on_breach: true
+
+volatility_targeting:
+  enabled: true
+  target_portfolio_vol: 0.12    # 12% annualized
+  min_scaling: 0.50             # never scale below 50%
+  max_scaling: 1.20             # never scale above 120%
+  smoothing_halflife: 10        # days for scaling smoothness
+
+stress_testing:
+  historical_scenarios:
+    - name: "2008 GFC"
+      start: "2008-09-01"
+      end: "2009-03-31"
+      shock_magnitude: -0.40
+    - name: "COVID Crash"
+      start: "2020-02-15"
+      end: "2020-03-23"
+      shock_magnitude: -0.35
+    - name: "2022 Rate Shock"
+      start: "2022-01-01"
+      end: "2022-10-15"
+      shock_magnitude: -0.25
+    - name: "SVB Crisis"
+      start: "2023-03-08"
+      end: "2023-03-20"
+      shock_magnitude: -0.10
+
+  synthetic_scenarios:
+    - name: "USD Spike +15%"
+      fx_shock: 0.15
+      equity_shock: -0.10
+      bond_shock: -0.03
+    - name: "India Crash -30%"
+      india_equity_shock: -0.30
+      us_equity_shock: -0.10
+      gold_shock: 0.08
+    - name: "Tech Selloff -25%"
+      tech_shock: -0.25
+      non_tech_shock: -0.05
+      bond_shock: 0.03
+    - name: "Rates Shock +200bps"
+      bond_shock: -0.12
+      equity_shock: -0.08
+      gold_shock: 0.05
+    - name: "Correlation Spike"
+      correlation_override: 0.85
+      vol_multiplier: 1.5
+
+constraints:
+  max_asset_risk_contribution: 0.35
+  max_sector_risk: 0.50
+  max_fx_exposure: 0.60
+  turnover_penalty: 0.005       # 50bps penalty per unit turnover
+  max_monthly_turnover: 0.30    # 30% one-way
