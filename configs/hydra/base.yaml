@@ -1,0 +1,113 @@
+# ── Portfolio OS — Base Configuration ─────────────────────────────────────────
+# Override per environment: dev.yaml, prod.yaml
+
+system:
+  name: portfolio-os
+  version: "1.0.0-mvp"
+  env: dev
+  log_level: INFO
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  cache_dir: data/cache
+  exports_dir: data/exports
+  holdings_dir: data/holdings
+  warehouse_db: data/warehouse.duckdb
+
+ingestion:
+  start_date: "2019-01-01"
+  end_date: "2025-12-31"
+  yahoo:
+    timeout: 30
+    max_retries: 3
+  mf:
+    source: amfi
+  fixed_income:
+    compounding: daily
+  metals:
+    gold_proxy: "GC=F"
+    silver_proxy: "SI=F"
+
+fx:
+  base_currency: INR
+  pairs:
+    - USDINR=X
+
+analytics:
+  rolling_windows: [20, 60, 120]
+  risk_free_rate: 0.065  # 6.5% India 10Y
+  benchmark_ticker: SPY
+  trading_days: 252
+
+features:
+  momentum_windows: [20, 60, 120]
+  volatility_windows: [20, 60, 120]
+  composite_weights:
+    momentum: 0.40
+    trend: 0.30
+    low_vol: 0.30
+
+optimization:
+  method: hrp  # hrp | equal_weight | inverse_vol | risk_parity
+  covariance: shrinkage  # sample | shrinkage | ewma
+  constraints:
+    max_position_weight: 0.25
+    max_country_weight: 0.50
+    max_sector_weight: 0.40
+  tilt:
+    enabled: true
+    strength: 0.20
+    max_deviation: 0.10
+
+rebalance:
+  method: threshold  # threshold | calendar | hybrid
+  drift_threshold: 0.05
+  calendar_frequency: quarterly
+  niyati_fragility_gate: true
+  fragility_drift_override: 0.03
+
+backtesting:
+  initial_capital: 1000000.0
+  frequency: monthly  # monthly | quarterly
+  friction:
+    slippage_bps: 10
+    brokerage_in_pct: 0.05
+    stamp_duty_in_pct: 0.10
+    fx_conversion_pct: 0.25
+  taxes:
+    stcg_equity_pct: 15
+    stcg_other_pct: 30
+    ltcg_pct: 10
+    cess_pct: 4
+    holding_period_months: 12
+
+validation:
+  walkforward:
+    train_years: 3
+    test_years: 1
+    step_years: 1
+  monte_carlo:
+    n_paths: 1000
+    block_size: 20
+    horizon_days: 252
+  regimes:
+    method: garch
+  research_score:
+    min_acceptable: 60
+
+monitoring:
+  drift_alert_threshold: 0.05
+  drawdown_alert_threshold: -0.15
+  concentration_hhi_alert: 0.25
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+
+niyati:
+  base_url: "https://api.causalorlabs.com"
+  version: "0.3.17"
+  timeout: 30
+  crash_budget: 0.006

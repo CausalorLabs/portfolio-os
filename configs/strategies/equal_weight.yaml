@@ -1,0 +1,18 @@
+# ── Equal Weight Strategy ─────────────────────────────────────────────────────
+name: equal_weight
+description: "Naive 1/N equal weight baseline"
+
+optimization:
+  method: equal_weight
+  covariance: null
+
+tilt:
+  enabled: false
+
+rebalance:
+  method: calendar
+  frequency: quarterly
+
+constraints:
+  max_position_weight: 1.0
+  max_country_weight: 1.0

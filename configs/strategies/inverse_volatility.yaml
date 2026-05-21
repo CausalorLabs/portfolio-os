@@ -1,0 +1,19 @@
+# ── Inverse Volatility Strategy ───────────────────────────────────────────────
+name: inverse_volatility
+description: "Inverse volatility weighted allocation"
+
+optimization:
+  method: inverse_vol
+  covariance: ewma
+
+tilt:
+  enabled: false
+
+rebalance:
+  method: threshold
+  drift_threshold: 0.05
+  frequency: quarterly
+
+constraints:
+  max_position_weight: 0.30
+  max_country_weight: 0.60

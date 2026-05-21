@@ -1,0 +1,14 @@
+# ── Production environment overrides ──────────────────────────────────────────
+defaults:
+  - base
+
+system:
+  env: prod
+  log_level: WARNING
+
+api:
+  reload: false
+
+validation:
+  monte_carlo:
+    n_paths: 5000

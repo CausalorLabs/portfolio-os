@@ -1,0 +1,10 @@
+# ── Dev environment overrides ─────────────────────────────────────────────────
+defaults:
+  - base
+
+system:
+  env: dev
+  log_level: DEBUG
+
+api:
+  reload: true

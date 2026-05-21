@@ -17,3 +17,9 @@ reports/*.csv
 dist/
 build/
 .ipynb_checkpoints/
+
+# MVP additions
+data/warehouse.duckdb
+data/warehouse.duckdb.wal
+logs/
+*.log

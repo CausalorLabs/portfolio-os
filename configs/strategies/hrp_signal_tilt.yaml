@@ -1,0 +1,24 @@
+# ── HRP Strategy ─────────────────────────────────────────────────────────────
+name: hrp_signal_tilt
+description: "HRP allocation with momentum-trend-lowvol signal tilt"
+
+optimization:
+  method: hrp
+  covariance: shrinkage
+
+tilt:
+  enabled: true
+  strength: 0.20
+  weights:
+    momentum: 0.40
+    trend: 0.30
+    low_vol: 0.30
+
+rebalance:
+  method: threshold
+  drift_threshold: 0.05
+  frequency: quarterly
+
+constraints:
+  max_position_weight: 0.25
+  max_country_weight: 0.50

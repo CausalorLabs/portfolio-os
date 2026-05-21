@@ -1,0 +1,50 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../reports:/app/reports
+      - ../configs:/app/configs
+    env_file:
+      - ../.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../data:/app/data
+      - ../reports:/app/reports
+      - ../configs:/app/configs
+    env_file:
+      - ../.env
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  warehouse:
+    image: python:3.13-slim
+    volumes:
+      - ../data:/data
+    command: >
+      sh -c "pip install duckdb && python -c \"
+        import duckdb
+        con = duckdb.connect('/data/warehouse.duckdb')
+        print('DuckDB warehouse initialized')
+        con.close()
+      \""
+    profiles:
+      - init
