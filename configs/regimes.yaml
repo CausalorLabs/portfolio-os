@@ -1,0 +1,110 @@
+# ── Regime Intelligence Configuration ────────────────────────────────────────
+
+taxonomy:
+  states:
+    - risk_on
+    - risk_off
+    - panic
+    - high_vol
+
+# ── Feature thresholds ───────────────────────────────────────────────────────
+
+features:
+  vix:
+    ticker: "^VIX"
+    panic_threshold: 30.0
+    high_vol_threshold: 22.0
+    calm_threshold: 16.0
+    zscore_window: 252         # 1 year lookback for z-score
+
+  momentum:
+    spy_ticker: SPY
+    nifty_ticker: "^NSEI"      # Will fallback to RELIANCE.NS if unavailable
+    window: 60                 # days for momentum calc
+    strong_threshold: 0.08     # annualized return above this = strong
+    weak_threshold: -0.02      # below this = weak
+
+  breadth:
+    ma_window: 200             # stocks above 200 DMA
+    strong_threshold: 0.65     # > 65% above MA = healthy
+    weak_threshold: 0.40       # < 40% = deteriorating
+
+  volatility:
+    realized_window: 20
+    long_window: 252
+    spike_ratio: 1.5           # short/long vol ratio > 1.5 = spike
+
+  correlation:
+    window: 60
+    stress_threshold: 0.75     # avg pairwise corr > 0.75 = correlation stress
+
+  liquidity:
+    atr_window: 14
+    spike_multiplier: 2.0      # ATR > 2x median = liquidity stress
+
+# ── Detector thresholds (rule-based V1) ──────────────────────────────────────
+
+detector:
+  # Panic: VIX extreme + vol spike + breadth collapse
+  panic:
+    min_conditions: 2          # need at least 2 of 3
+    vix_above: 30.0
+    vol_spike_ratio: 1.8
+    breadth_below: 0.35
+
+  # Risk OFF: weak momentum + rising vol + poor breadth
+  risk_off:
+    min_conditions: 2
+    momentum_below: -0.02
+    vol_above_median: true
+    breadth_below: 0.45
+
+  # Risk ON: strong trend + healthy breadth + stable vol
+  risk_on:
+    min_conditions: 2
+    momentum_above: 0.05
+    breadth_above: 0.55
+    vol_below_median: true
+
+  # High Vol: vol spike but no panic (catch-all for instability)
+  high_vol:
+    vol_spike_ratio: 1.3
+    vix_above: 20.0
+
+# ── Persistence (anti-flapping) ──────────────────────────────────────────────
+
+persistence:
+  min_regime_days: 5           # minimum duration before switching
+  confirmation_window: 3       # need N consecutive days confirming new regime
+  hysteresis_factor: 0.8       # entry threshold vs exit threshold ratio
+
+# ── Portfolio behavior mapping ───────────────────────────────────────────────
+
+behavior:
+  risk_on:
+    max_equity_weight: 0.80
+    covariance_method: shrinkage
+    covariance_ewma_halflife: 120
+    rebalance_drift_threshold: 0.05
+    tilt_strength: 0.25        # slightly more aggressive tilts
+
+  risk_off:
+    max_equity_weight: 0.55
+    covariance_method: shrinkage
+    covariance_ewma_halflife: 60
+    rebalance_drift_threshold: 0.04
+    tilt_strength: 0.10        # reduce signal tilts
+
+  panic:
+    max_equity_weight: 0.35
+    covariance_method: ewma
+    covariance_ewma_halflife: 30   # shorter window captures stress
+    rebalance_drift_threshold: 0.08  # higher threshold = less trading in crisis
+    tilt_strength: 0.0         # no tilts — pure HRP defense
+
+  high_vol:
+    max_equity_weight: 0.60
+    covariance_method: ewma
+    covariance_ewma_halflife: 45
+    rebalance_drift_threshold: 0.06  # slightly higher to reduce turnover
+    tilt_strength: 0.15

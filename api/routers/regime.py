@@ -1,4 +1,4 @@
-"""Regime endpoints — current market regime."""
+"""Regime endpoints — current market regime and behavior."""
 
 from __future__ import annotations
 
@@ -14,9 +14,25 @@ router = APIRouter()
 
 @router.get("/current")
 async def get_current_regime() -> dict:
-    """Get the current detected market regime."""
-    regime_path = Path("data/processed/regime_analysis.parquet")
+    """Get the current detected market regime and portfolio behavior."""
+    # Try new regime intelligence engine first
+    try:
+        from regimes import get_current_regime as _get_regime, get_regime_behavior
+        regime_name, behavior = _get_regime()
+        return {
+            "regime": regime_name,
+            "behavior": {
+                "max_equity_weight": behavior.max_equity_weight,
+                "covariance_method": behavior.covariance_method,
+                "rebalance_drift_threshold": behavior.rebalance_drift_threshold,
+                "tilt_strength": behavior.tilt_strength,
+            },
+        }
+    except Exception:
+        pass
 
+    # Fallback to legacy regime data
+    regime_path = Path("data/processed/regime_analysis.parquet")
     if not regime_path.exists():
         raise HTTPException(status_code=503, detail="Regime data not available. Run the pipeline first.")
 
@@ -28,7 +44,6 @@ async def get_current_regime() -> dict:
     if df.empty:
         raise HTTPException(status_code=503, detail="Regime data is empty.")
 
-    # Get the latest regime
     df["date"] = pd.to_datetime(df["date"])
     latest = df.sort_values("date").iloc[-1]
 
