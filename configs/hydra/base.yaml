@@ -67,6 +67,7 @@ rebalance:
   niyati_fragility_gate: true
   fragility_drift_override: 0.03
   regime_aware: true           # use regime engine to adjust drift threshold
+  alpha_aware: true            # use ML alpha engine for allocation tilts
 
 regimes:
   enabled: true
@@ -74,6 +75,10 @@ regimes:
   persistence:
     min_regime_days: 5
     confirmation_window: 3
+
+ml_alpha:
+  enabled: true
+  config_file: configs/ml_alpha.yaml
 
 backtesting:
   initial_capital: 1000000.0

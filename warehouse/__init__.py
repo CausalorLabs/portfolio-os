@@ -40,6 +40,7 @@ _TABLE_REGISTRY: dict[str, str] = {
     "regime_features": "regime_features.parquet",
     "regime_states": "regime_states.parquet",
     "regime_durations": "regime_durations.parquet",
+    "alpha_scores": "alpha_scores.parquet",
     "monte_carlo_summary": "monte_carlo_summary.parquet",
     "stress_test_results": "stress_test_results.parquet",
     "fx_series": "fx_series.parquet",

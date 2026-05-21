@@ -23,3 +23,8 @@ pydantic>=2.0
 fastapi>=0.100
 uvicorn[standard]>=0.20
 rich>=13.0
+# ── ML Alpha Engine ──
+lightgbm>=4.0
+catboost>=1.2
+shap>=0.50
+mlflow>=3.0

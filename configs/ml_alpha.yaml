@@ -1,0 +1,151 @@
+# ── ML Alpha Engine Configuration ───────────────────────────────────────────
+# Portfolio-aware ML: cross-sectional ranking, NOT price prediction.
+# Philosophy: tilt allocations, don't determine them.
+
+targets:
+  forward_rank:
+    horizon_days: 5
+    method: cross_sectional_percentile   # rank returns across universe
+  risk_adjusted:
+    horizon_days: 20
+    method: forward_return_over_vol      # ret / vol
+    vol_window: 20
+  downside_probability:
+    horizon_days: 20
+    method: empirical                    # P(ret < 0) from ensemble
+
+features:
+  technical:
+    - momentum_20d
+    - momentum_60d
+    - momentum_120d
+    - volatility_20d
+    - volatility_60d
+    - atr_pct_14d
+    - rsi_14
+    - bb_zscore
+    - ma_distance_20
+    - ma_distance_50
+    - ma_distance_200
+    - trend_slope_60d
+    - crossover_sma20_sma50
+    - crossover_sma50_sma200
+    - return_5d
+    - return_20d
+    - return_60d
+
+  cross_sectional:
+    - momentum_rank_20d
+    - momentum_rank_60d
+    - momentum_rank_120d
+    - relative_vol_rank
+    - relative_rsi_rank
+    - relative_trend_rank
+
+  regime:
+    - regime_state_encoded
+    - regime_confidence
+    - regime_vol_ratio
+    - regime_breadth
+    - regime_momentum
+
+  factor:
+    - factor_momentum
+    - factor_trend
+    - factor_low_vol
+    - beta_60d
+    - downside_vol_ratio
+
+  macro:
+    - vix_level
+    - vix_zscore
+    - cross_asset_corr
+
+models:
+  lightgbm:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_samples: 20
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+
+  catboost:
+    iterations: 500
+    depth: 6
+    learning_rate: 0.05
+    l2_leaf_reg: 3.0
+    subsample: 0.8
+    random_seed: 42
+    verbose: 0
+    early_stopping_rounds: 50
+
+  momentum_baseline:
+    lookback_days: 60
+    weight_in_ensemble: 0.20
+
+ensemble:
+  method: weighted_average
+  weights:
+    lightgbm: 0.40
+    catboost: 0.40
+    momentum_baseline: 0.20
+
+training:
+  walk_forward:
+    min_train_years: 3
+    test_period_years: 1
+    expanding_window: true
+    purge_days: 5               # gap between train and test to prevent leakage
+    embargo_days: 5             # gap after test to prevent leakage
+
+  validation:
+    metric: rank_ic             # information coefficient
+    early_stopping_rounds: 50
+
+confidence:
+  inputs:
+    - prediction_dispersion     # model disagreement
+    - regime_stability          # from Sprint 2
+    - rolling_ic                # trailing rank IC
+    - feature_drift             # distribution shift
+  decay_halflife: 60            # exponential decay for rolling IC
+  min_confidence: 0.20          # floor — never fully trust/distrust
+  max_confidence: 0.95
+
+quality:
+  drift:
+    method: psi                 # population stability index
+    threshold: 0.20             # PSI > 0.20 = significant drift
+    reference_window: 252       # 1 year baseline
+  correlation:
+    max_pairwise: 0.85          # drop features corr > 0.85
+    method: spearman
+  missing:
+    max_missing_pct: 0.50       # drop feature if >50% missing
+    imputation: forward_fill
+    validity_window: 60         # feature must exist for 60 days
+
+evaluation:
+  metrics:
+    - rank_ic                   # Spearman rank correlation
+    - hit_ratio                 # % correct direction
+    - turnover_impact           # excess turnover from alpha tilts
+    - drawdown_improvement      # DD reduction vs baseline
+    - sharpe_contribution       # marginal Sharpe from alpha
+    - stability                 # IC rolling std
+    - calibration               # confidence vs actual accuracy
+
+tracking:
+  backend: mlflow
+  experiment_name: portfolio_alpha
+  artifact_dir: data/ml_artifacts
+
+portfolio_integration:
+  method: alpha_tilt
+  max_tilt_strength: 0.30      # maximum alpha can move weights
+  min_confidence_to_tilt: 0.40 # don't tilt if confidence < 40%
+  blend_formula: "hrp_weight * (1 + tilt_strength * alpha_score * confidence)"

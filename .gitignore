@@ -21,5 +21,8 @@ build/
 # MVP additions
 data/warehouse.duckdb
 data/warehouse.duckdb.wal
+data/ml_artifacts/
+catboost_info/
+mlruns/
 logs/
 *.log
